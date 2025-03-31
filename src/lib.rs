@@ -5,7 +5,9 @@ use actix_web::{App, HttpRequest, HttpResponse, HttpServer, Responder, web};
 
 #[derive(serde::Deserialize)]
 struct FormData {
+    #[allow(dead_code)]
     username: String,
+    #[allow(dead_code)]
     email: String,
 }
 
