@@ -2,7 +2,7 @@ use reqwest;
 
 #[tokio::test]
 async fn health_check_works() {
-    spawn_app().await.expect("Failed to spawn our app.");
+    spawn_app();
 
     let client = reqwest::Client::new();
 
@@ -15,6 +15,8 @@ async fn health_check_works() {
     assert_eq!(Some(0), response.content_length());
 }
 
-async fn spawn_app() -> std::io::Result<()> {
-    z2p::run().await
+fn spawn_app() {
+    let server = z2p::run().expect("Failed to bind address");
+
+    tokio::spawn(server);
 }
