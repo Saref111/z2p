@@ -3,16 +3,13 @@ name: Rust
 
 # To automatically trigger the workflow
 on:
-  # NB: this differs from the book's project!
-  # These settings allow us to run this specific CI pipeline for PRs against
-  # this specific branch (a.k.a. book chapter).
   push:
     branches:
       - main
   pull_request:
     types: [opened, synchronize, reopened]
     branches:
-      - root-chapter-03-part1
+      - main
 
 env:
   CARGO_TERM_COLOR: always
@@ -79,6 +76,9 @@ jobs:
 
       - name: Migrate database
         run: SKIP_DOCKER=true ./scripts/init_db.sh
+
+      - name: Prepare SQL query cache
+        run: cargo sqlx prepare --workspace -- --all-targets
 
       - name: Run tests
         run: cargo test
