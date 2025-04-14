@@ -125,23 +125,8 @@ jobs:
           --no-default-features
           --locked
 
-      - name: Create app user in Postgres
-        run: |
-          sudo apt-get install postgresql-client
-
-          # Create the application user
-          CREATE_QUERY="CREATE USER ${APP_USER} WITH PASSWORD '${APP_USER_PWD}';"
-          PGPASSWORD="password" psql -U "postgres" -h "localhost" -c "${CREATE_QUERY}"
-
-          # Grant create db privileges to the app user
-          GRANT_QUERY="ALTER USER ${APP_USER} CREATEDB;"
-          PGPASSWORD="password" psql -U "postgres" -h "localhost" -c "${GRANT_QUERY}"
-
-      - name: Migrate database
-        run: SKIP_DOCKER=true ./scripts/init_db.sh
-
       - name: Prepare SQLx queries
-        run: cargo sqlx prepare -- --lib
+        run: SQLX_OFFLINE=true cargo sqlx prepare -- --lib
 
       - name: Linting
         run: cargo clippy -- -D warnings
