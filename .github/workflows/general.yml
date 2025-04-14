@@ -117,16 +117,6 @@ jobs:
         uses: actions-rust-lang/setup-rust-toolchain@v1
         with:
           components: clippy
-
-      - name: Install sqlx-cli
-        run: cargo install sqlx-cli
-          --version=${{ env.SQLX_VERSION }}
-          --features ${{ env.SQLX_FEATURES }}
-          --no-default-features
-          --locked
-
-      - name: Prepare SQL query cache
-        run: cargo sqlx prepare --workspace -- --all-targets
       
       - name: Linting
         run: cargo clippy -- -D warnings
