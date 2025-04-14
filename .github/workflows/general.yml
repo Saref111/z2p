@@ -125,9 +125,6 @@ jobs:
           --no-default-features
           --locked
 
-      - name: Prepare SQLx queries
-        run: SQLX_OFFLINE=true cargo sqlx prepare -- --lib
-
       - name: Linting
         run: cargo clippy -- -D warnings
 
