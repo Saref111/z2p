@@ -78,13 +78,13 @@ jobs:
         run: SKIP_DOCKER=true ./scripts/init_db.sh
 
       - name: Prepare SQL query cache
-        run: cargo sqlx prepare --workspace --check -- --all-targets
+        run: cargo sqlx prepare --workspace -- --all-targets
 
       - name: Run tests
         run: cargo test
 
-      # - name: Check that queries are fresh
-      #   run: cargo sqlx prepare --workspace --check -- --all-targets
+      - name: Check that queries are fresh
+        run: cargo sqlx prepare --workspace --check -- --all-targets
 
   # `fmt` container job
   fmt:
