@@ -23,12 +23,12 @@ pub async fn subscribe(form: web::Form<FormData>, db_pool: web::Data<PgPool>) ->
     )
     .execute(db_pool.get_ref())
     .await;
-    
+
     match query_result {
         Ok(_) => HttpResponse::Ok().finish(),
         Err(err) => {
             println!("Failed to execute query: {}", err);
             HttpResponse::InternalServerError().finish()
         }
-    }    
+    }
 }

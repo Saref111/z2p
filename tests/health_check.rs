@@ -1,13 +1,13 @@
 use std::net::TcpListener;
 
 use reqwest;
-use sqlx::{Connection, PgConnection, PgPool, Executor};
+use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
-use z2p::configuration::{get_configuration, DatabaseSettings};
+use z2p::configuration::{DatabaseSettings, get_configuration};
 
 pub struct TestApp {
     pub address: String,
-    pub db_pool: PgPool
+    pub db_pool: PgPool,
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
@@ -20,8 +20,10 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to create database");
 
-    let connection_pull = PgPool::connect(&config.connection_string()).await.expect("Failed to connect to Postgres");
-    
+    let connection_pull = PgPool::connect(&config.connection_string())
+        .await
+        .expect("Failed to connect to Postgres");
+
     sqlx::migrate!("./migrations")
         .run(&connection_pull)
         .await
@@ -38,13 +40,14 @@ pub async fn spawn_app() -> TestApp {
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port.");
     let port = listener.local_addr().unwrap().port();
-    let server = z2p::startup::run(listener, connection_pool.clone()).expect("Failed to bind address.");
+    let server =
+        z2p::startup::run(listener, connection_pool.clone()).expect("Failed to bind address.");
 
     let _ = tokio::spawn(server);
 
     TestApp {
         address: format!("http://127.0.0.1:{port}"),
-        db_pool: connection_pool.clone()
+        db_pool: connection_pool.clone(),
     }
 }
 
@@ -52,7 +55,7 @@ pub async fn spawn_app() -> TestApp {
 async fn health_check_works() {
     let TestApp {
         address,
-        db_pool: _
+        db_pool: _,
     } = spawn_app().await;
 
     let client = reqwest::Client::new();
@@ -69,10 +72,7 @@ async fn health_check_works() {
 
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_form_data() {
-    let TestApp { 
-        address, 
-        db_pool 
-    } = spawn_app().await;
+    let TestApp { address, db_pool } = spawn_app().await;
 
     let client = reqwest::Client::new();
 
@@ -100,7 +100,7 @@ async fn subscribe_returns_200_for_valid_form_data() {
 async fn subscribe_returns_400_when_data_is_missing() {
     let TestApp {
         address,
-        db_pool: _
+        db_pool: _,
     } = spawn_app().await;
 
     let client = reqwest::Client::new();
