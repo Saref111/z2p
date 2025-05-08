@@ -5,9 +5,7 @@ use tracing::Instrument;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
-    #[allow(dead_code)]
     name: String,
-    #[allow(dead_code)]
     email: String,
 }
 
