@@ -45,14 +45,14 @@ impl DatabaseSettings {
 
 pub enum Environment {
     Local,
-    Production
+    Production,
 }
 
 impl Environment {
     pub fn as_str(&self) -> &'static str {
         match self {
             Environment::Local => "local",
-            Environment::Production => "production"
+            Environment::Production => "production",
         }
     }
 }
@@ -64,7 +64,10 @@ impl TryFrom<String> for Environment {
         match value.to_lowercase().as_str() {
             "local" => Ok(Environment::Local),
             "production" => Ok(Environment::Production),
-            other => Err(format!("{} is not supported environment. Try to use `local` or `production`", other))
+            other => Err(format!(
+                "{} is not supported environment. Try to use `local` or `production`",
+                other
+            )),
         }
     }
 }
@@ -78,8 +81,24 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .expect("Failed to parse APP_ENV");
 
     let settings = config::Config::builder()
-        .add_source(config::File::with_name(conf_dir.join("base").to_str().unwrap()).required(true))
-        .add_source(config::File::with_name(conf_dir.join(env.as_str()).to_str().unwrap()).required(true))
+        .add_source(
+            config::File::with_name(
+                conf_dir
+                    .join("base")
+                    .to_str()
+                    .expect("Failed to read base configuration"),
+            )
+            .required(true),
+        )
+        .add_source(
+            config::File::with_name(
+                conf_dir
+                    .join(env.as_str())
+                    .to_str()
+                    .expect("Failed to read environment configuration"),
+            )
+            .required(true),
+        )
         .build()?;
 
     settings.try_deserialize::<Settings>()
