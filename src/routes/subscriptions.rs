@@ -4,14 +4,34 @@ use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
-    #[allow(dead_code)]
     name: String,
-    #[allow(dead_code)]
     email: String,
 }
 
+#[tracing::instrument(
+    name = "Adding a new subscriber.",
+    skip(form, db_pool),
+    fields(
+        subscriber_email = %form.email,
+        subscriber_name = %form.name
+    )
+)]
 pub async fn subscribe(form: web::Form<FormData>, db_pool: web::Data<PgPool>) -> impl Responder {
-    let query_result = sqlx::query!(
+    match insert_subscriber(&form, &db_pool).await {
+        Ok(_) => HttpResponse::Ok().finish(),
+        Err(_) => HttpResponse::InternalServerError().finish(),
+    }
+}
+
+#[tracing::instrument(
+    name = "Saving new subscriber details in the database",
+    skip(form, pool)
+)]
+pub async fn insert_subscriber(
+    form: &web::Form<FormData>,
+    pool: &web::Data<PgPool>,
+) -> Result<(), sqlx::Error> {
+    sqlx::query!(
         r#"
         INSERT INTO subscriptions (id, email, name, subscribed_at)
         VALUES ($1, $2, $3, $4)
@@ -21,14 +41,12 @@ pub async fn subscribe(form: web::Form<FormData>, db_pool: web::Data<PgPool>) ->
         form.name,
         Utc::now()
     )
-    .execute(db_pool.get_ref())
-    .await;
+    .execute(pool.get_ref())
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to execute query: {:?}", err);
+        err
+    })?;
 
-    match query_result {
-        Ok(_) => HttpResponse::Ok().finish(),
-        Err(err) => {
-            println!("Failed to execute query: {}", err);
-            HttpResponse::InternalServerError().finish()
-        }
-    }
+    Ok(())
 }
