@@ -1,5 +1,6 @@
 use tracing::{Subscriber, subscriber::set_global_default};
 use tracing_bunyan_formatter::{BunyanFormattingLayer, JsonStorageLayer};
+use tracing_error::ErrorLayer;
 use tracing_log::LogTracer;
 use tracing_subscriber::{fmt::MakeWriter, layer::SubscriberExt, EnvFilter, Registry};
 
@@ -20,6 +21,7 @@ where
         .with(env_filter)
         .with(JsonStorageLayer)
         .with(formatting_layer)
+        .with(ErrorLayer::default())
 }
 
 pub fn init_subscriber<S>(subscriber: S)
