@@ -1,9 +1,18 @@
 use std::net::TcpListener;
 
+use once_cell::sync::Lazy;
 use reqwest;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
-use z2p::configuration::{DatabaseSettings, get_configuration};
+use z2p::{
+    configuration::{DatabaseSettings, get_configuration},
+    telemetry::{get_subscriber, init_subscriber},
+};
+
+static TRACING: Lazy<()> = Lazy::new(|| {
+    let subscriber = get_subscriber("test".into(), "debug".into());
+    init_subscriber(subscriber);
+});
 
 pub struct TestApp {
     pub address: String,
@@ -33,6 +42,8 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
 }
 
 pub async fn spawn_app() -> TestApp {
+    Lazy::force(&TRACING);
+
     let mut config = get_configuration().expect("Failed to read configuration");
     config.database.database_name = Uuid::new_v4().to_string();
 
