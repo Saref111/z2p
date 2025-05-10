@@ -1,5 +1,5 @@
 use secrecy::ExposeSecret;
-use sqlx::{PgPool, postgres::PgPoolOptions};
+use sqlx::postgres::PgPoolOptions;
 use std::{net::TcpListener, time::Duration};
 use z2p::{
     configuration::get_configuration,
