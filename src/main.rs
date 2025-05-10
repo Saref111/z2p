@@ -1,6 +1,6 @@
 use secrecy::ExposeSecret;
-use sqlx::PgPool;
-use std::net::TcpListener;
+use sqlx::postgres::PgPoolOptions;
+use std::{net::TcpListener, time::Duration};
 use z2p::{
     configuration::get_configuration,
     startup::run,
@@ -13,9 +13,10 @@ async fn main() -> std::io::Result<()> {
     init_subscriber(subscriber);
 
     let config = get_configuration().expect("Failed to read configuration");
-    let address = format!("127.0.0.1:{}", config.app_port);
-    let connection_pool = PgPool::connect(config.database.connection_string().expose_secret())
-        .await
+    let address = format!("{}:{}", config.app.host, config.app.port);
+    let connection_pool = PgPoolOptions::new()
+        .acquire_timeout(Duration::from_secs(2))
+        .connect_lazy(config.database.connection_string().expose_secret())
         .expect("Failed to connect to Postgres");
 
     let listener = TcpListener::bind(address).unwrap();
