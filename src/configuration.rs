@@ -87,6 +87,12 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .try_into()
         .expect("Failed to parse APP_ENV");
 
+    let env_vars = config::Environment::with_prefix("app").separator("__");
+
+    println!("ENV_VARS");
+    dbg!(&env_vars);
+    println!("ENV_VARS");
+
     let settings = config::Config::builder()
         .add_source(
             config::File::with_name(
@@ -106,7 +112,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
             )
             .required(true),
         )
-        .add_source(config::Environment::with_prefix("app").separator("__"))
+        .add_source(env_vars)
         .build()?;
 
     settings.try_deserialize::<Settings>()
