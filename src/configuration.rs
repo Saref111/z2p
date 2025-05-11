@@ -1,3 +1,5 @@
+use std::env;
+
 use secrecy::{ExposeSecret, SecretString};
 use serde_aux::field_attributes::deserialize_number_from_string;
 use sqlx::ConnectOptions;
@@ -87,6 +89,8 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .try_into()
         .expect("Failed to parse APP_ENV");
 
+    println!("APP_DATABASE__HOST: {}", env::var("APP_DATABASE__HOST").unwrap_or_default());
+
     let settings = config::Config::builder()
         .add_source(
             config::File::with_name(
@@ -106,7 +110,7 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
             )
             .required(true),
         )
-        .add_source(config::Environment::with_prefix("APP").separator("__"))
+        .add_source(config::Environment::with_prefix("APP").separator("__").prefix_separator("_"))
         .build()?;
 
     settings.try_deserialize::<Settings>()
