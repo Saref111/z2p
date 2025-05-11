@@ -109,6 +109,5 @@ pub fn get_configuration() -> Result<Settings, config::ConfigError> {
         .add_source(config::Environment::with_prefix("APP").separator("__"))
         .build()?;
 
-    settings.app;
     settings.try_deserialize::<Settings>()
 }
