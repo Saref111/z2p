@@ -2,7 +2,6 @@ use std::net::TcpListener;
 
 use once_cell::sync::Lazy;
 use reqwest;
-use secrecy::ExposeSecret;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use z2p::{
@@ -30,7 +29,7 @@ pub struct TestApp {
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     let mut connection =
-        PgConnection::connect(&config.connection_string_without_db_name().expose_secret())
+        PgConnection::connect_with(&config.without_db())
             .await
             .expect("Failed to connect to Postgres");
 
@@ -39,7 +38,7 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
         .await
         .expect("Failed to create database");
 
-    let connection_pull = PgPool::connect(&config.connection_string().expose_secret())
+    let connection_pull = PgPool::connect_with(config.with_db())
         .await
         .expect("Failed to connect to Postgres");
 
