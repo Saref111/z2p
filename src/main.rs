@@ -1,4 +1,3 @@
-use secrecy::ExposeSecret;
 use sqlx::postgres::PgPoolOptions;
 use std::{net::TcpListener, time::Duration};
 use z2p::{
@@ -16,8 +15,7 @@ async fn main() -> std::io::Result<()> {
     let address = format!("{}:{}", config.app.host, config.app.port);
     let connection_pool = PgPoolOptions::new()
         .acquire_timeout(Duration::from_secs(2))
-        .connect_lazy(config.database.connection_string().expose_secret())
-        .expect("Failed to connect to Postgres");
+        .connect_lazy_with(config.database.with_db());
 
     let listener = TcpListener::bind(address).unwrap();
     run(listener, connection_pool)?.await
