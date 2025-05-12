@@ -8,13 +8,11 @@ use z2p::{
 
 #[tokio::main]
 async fn main() -> std::io::Result<()> {
-    let subscriber = get_subscriber("zero2prod".into(), "info".into(), std::io::stdout);
+    let subscriber = get_subscriber("z2p".into(), "info".into(), std::io::stdout);
     init_subscriber(subscriber);
 
     let config = get_configuration().expect("Failed to read configuration");
-    println!("SETTINGS");
-    dbg!(&config);
-    println!("SETTINGS");
+
     let address = format!("{}:{}", config.app.host, config.app.port);
     let connection_pool = PgPoolOptions::new()
         .acquire_timeout(Duration::from_secs(2))
