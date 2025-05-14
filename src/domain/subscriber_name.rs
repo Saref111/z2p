@@ -25,20 +25,6 @@ impl AsRef<str> for SubscriberName {
     }
 }
 
-pub struct NewSubscriber {
-    pub email: String,
-    pub name: SubscriberName
-}
-
-impl NewSubscriber {
-    fn try_new(name: String, email: String) -> Result<Self, String> {
-        let name = SubscriberName::parse(name)?;
-        Ok(Self {
-            name,
-            email
-        })
-    }
-}
 
 #[cfg(test)]
 mod test {

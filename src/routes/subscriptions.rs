@@ -2,7 +2,7 @@ use actix_web::{HttpResponse, Responder, web};
 use sqlx::{PgPool, types::chrono::Utc};
 use uuid::Uuid;
 
-use crate::domain::{NewSubscriber, SubscriberName};
+use crate::domain::{NewSubscriber, SubscriberEmail, SubscriberName};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -20,12 +20,13 @@ pub struct FormData {
 )]
 pub async fn subscribe(form: web::Form<FormData>, db_pool: web::Data<PgPool>) -> impl Responder {
     let new_subscriber = NewSubscriber {
-        email: form.0.email,
+        email: SubscriberEmail::parse(form.0.email).expect("Failed parsing email."),
         name: {
-            let result =  SubscriberName::parse(form.0.name); //.expect("Subscriber name validation failed.")
+            let result =  SubscriberName::parse(form.0.name);
 
             if let Err(_) = result {
                 return HttpResponse::BadRequest()
+                    .reason("Subscriber name validation failed.")
                     .finish();
             }
 
@@ -53,7 +54,7 @@ pub async fn insert_subscriber(
         VALUES ($1, $2, $3, $4)
         "#,
         Uuid::new_v4(),
-        new_subscriber.email,
+        new_subscriber.email.as_ref(),
         new_subscriber.name.as_ref(),
         Utc::now()
     )
