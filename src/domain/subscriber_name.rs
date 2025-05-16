@@ -7,7 +7,7 @@ impl SubscriberName {
     pub fn parse(s: String) -> Result<Self, String> {
         let trim_or_whitespace = s.trim().is_empty();
         let is_too_long = s.graphemes(true).count() > 256;
-        
+
         let forbidden_characters = ['/', '(', ')', '"', '<', '>', '\\', '{', '}'];
         let contains_forbidden_chars = s.chars().any(|c| forbidden_characters.contains(&c));
 
@@ -24,7 +24,6 @@ impl AsRef<str> for SubscriberName {
         &self.0
     }
 }
-
 
 #[cfg(test)]
 mod test {
@@ -55,9 +54,9 @@ mod test {
     #[test]
     fn names_containing_an_invalid_character_are_rejected() {
         for name in &['/', '(', ')', '"', '<', '>', '\\', '{', '}'] {
-        let name = name.to_string();
-        assert_err!(SubscriberName::parse(name));
-    }
+            let name = name.to_string();
+            assert_err!(SubscriberName::parse(name));
+        }
     }
     #[test]
     fn a_valid_name_is_parsed_successfully() {

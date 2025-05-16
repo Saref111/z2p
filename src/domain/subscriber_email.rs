@@ -6,7 +6,7 @@ pub struct SubscriberEmail(String);
 impl SubscriberEmail {
     pub fn parse(s: String) -> Result<Self, String> {
         if !s.validate_email() {
-            return  Err(format!("{} is not a valid subscriber email.", s));
+            return Err(format!("{} is not a valid subscriber email.", s));
         };
         Ok(Self(s))
     }
@@ -22,7 +22,7 @@ impl AsRef<str> for SubscriberEmail {
 mod test {
     use crate::domain::SubscriberEmail;
     use claim::assert_err;
-    use fake::{faker::internet::en::SafeEmail, Fake};
+    use fake::{Fake, faker::internet::en::SafeEmail};
     use quickcheck::{Arbitrary, Gen};
 
     #[derive(Debug, Clone)]
@@ -47,7 +47,6 @@ mod test {
         let email = "ursuladomain.com".to_string();
         assert_err!(SubscriberEmail::parse(email));
     }
-
 
     #[test]
     fn email_missing_subject_is_rejected() {
