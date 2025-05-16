@@ -6,7 +6,7 @@ pub struct NewSubscriber {
 }
 
 impl NewSubscriber {
-    fn parse(name: String, email: String) -> Result<Self, String> {
+    pub fn parse(name: String, email: String) -> Result<Self, String> {
         let name = SubscriberName::parse(name)?;
         let email = SubscriberEmail::parse(email)?;
         Ok(Self {
