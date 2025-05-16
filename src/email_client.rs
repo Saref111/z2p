@@ -2,6 +2,7 @@ use reqwest::Client;
 
 use crate::domain::SubscriberEmail;
 
+#[derive(Clone)]
 pub struct EmailClient {
     http_client: Client,
     base_url: String,
@@ -10,9 +11,9 @@ pub struct EmailClient {
 
 impl EmailClient {
     pub fn new(base_url: String, sender: SubscriberEmail) -> Self {
-        Self { 
+        Self {
             http_client: Client::new(),
-            base_url, 
+            base_url,
             sender,
         }
     }
