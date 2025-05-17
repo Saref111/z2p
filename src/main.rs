@@ -2,7 +2,7 @@ use sqlx::postgres::PgPoolOptions;
 use std::{net::TcpListener, time::Duration};
 use z2p::{
     configuration::get_configuration,
-    email_client::{self, EmailClient},
+    email_client::EmailClient,
     startup::run,
     telemetry::{get_subscriber, init_subscriber},
 };
