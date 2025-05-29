@@ -18,6 +18,13 @@ impl AsRef<str> for SubscriberEmail {
     }
 }
 
+impl TryFrom<String> for SubscriberEmail {
+    type Error = String;
+    fn try_from(value: String) -> Result<Self, Self::Error> {
+        SubscriberEmail::parse(value)
+    }
+}
+
 #[cfg(test)]
 mod test {
     use crate::domain::SubscriberEmail;
@@ -51,6 +58,7 @@ mod test {
     #[test]
     fn email_missing_subject_is_rejected() {
         let email = "@domain.com".to_string();
+        let e: String = SafeEmail().fake();
         assert_err!(SubscriberEmail::parse(email));
     }
 
