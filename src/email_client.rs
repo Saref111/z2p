@@ -13,9 +13,20 @@ pub struct EmailClient {
 }
 
 #[derive(Serialize)]
+struct EmailUnit<'a> {
+    email: &'a str,
+}
+
+impl<'a> EmailUnit<'a> {
+    fn new(email: &'a str) -> Self {
+        Self { email }
+    }
+}
+
+#[derive(Serialize)]
 struct SendEmailRequest<'a> {
-    from: &'a str,
-    to: &'a str,
+    from: EmailUnit<'a>,
+    to: Vec<EmailUnit<'a>>,
     subject: &'a str,
     html: &'a str,
     text: &'a str,
@@ -31,24 +42,6 @@ impl EmailClient {
         }
     }
 
-    /*
-
-    curl ...  --data '{
-      "to": [
-        {
-          "email": "saref012@gmail.com"
-        }
-      ],
-      "from": {
-        "email": "noreply@test-r83ql3p28rmgzw1j.mlsender.net"
-      },
-      "subject": "New Attachment Test",
-      "html": "<p>Hello world!</p>"
-    }'
-
-
-     */
-
     pub async fn send_email(
         &self,
         recipient: SubscriberEmail,
@@ -62,8 +55,8 @@ impl EmailClient {
             .expect("Failed joining route to email api url.");
 
         let body = SendEmailRequest {
-            from: self.sender.as_ref(),
-            to: recipient.as_ref(),
+            from: EmailUnit::new(self.sender.as_ref()),
+            to: vec![EmailUnit::new(recipient.as_ref())],
             html: html_content,
             text: text_content,
             subject: &subject,
@@ -99,6 +92,24 @@ mod test {
 
     use crate::{domain::SubscriberEmail, email_client::EmailClient};
 
+    struct SendEmailBodyMatcher;
+
+    impl wiremock::Match for SendEmailBodyMatcher {
+        fn matches(&self, request: &wiremock::Request) -> bool {
+            let result: Result<serde_json::Value, _> = serde_json::from_slice(&request.body);
+
+            if let Ok(body) = result {
+                body.get("from").is_some()
+                && body.get("to").is_some()
+                && body.get("subject").is_some()
+                && body.get("html").is_some()
+                && body.get("text").is_some()
+            } else {
+                false
+            }
+        }
+    }
+
     #[tokio::test]
     async fn send_email_fires_a_request_to_base_url() {
         let mock_server = MockServer::start().await;
@@ -111,6 +122,7 @@ mod test {
             .and(header("Content-type", "application/json"))
             .and(path("v1/email"))
             .and(method("POST"))
+            .and(SendEmailBodyMatcher)
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&mock_server)
