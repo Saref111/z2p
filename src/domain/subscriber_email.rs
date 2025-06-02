@@ -58,7 +58,6 @@ mod test {
     #[test]
     fn email_missing_subject_is_rejected() {
         let email = "@domain.com".to_string();
-        let e: String = SafeEmail().fake();
         assert_err!(SubscriberEmail::parse(email));
     }
 

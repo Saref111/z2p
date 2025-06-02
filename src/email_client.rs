@@ -1,5 +1,3 @@
-use std::str::FromStr;
-
 use reqwest::{Client, Url};
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
@@ -94,7 +92,10 @@ mod test {
         },
     };
     use secrecy::SecretString;
-    use wiremock::{Mock, MockServer, ResponseTemplate, matchers::any};
+    use wiremock::{
+        Mock, MockServer, ResponseTemplate,
+        matchers::{header, header_exists, method, path},
+    };
 
     use crate::{domain::SubscriberEmail, email_client::EmailClient};
 
@@ -106,7 +107,10 @@ mod test {
         let email_client =
             EmailClient::new(mock_server.uri(), sender, SecretString::from(auth_token));
 
-        Mock::given(any())
+        Mock::given(header_exists("Authorization"))
+            .and(header("Content-type", "application/json"))
+            .and(path("v1/email"))
+            .and(method("POST"))
             .respond_with(ResponseTemplate::new(200))
             .expect(1)
             .mount(&mock_server)
