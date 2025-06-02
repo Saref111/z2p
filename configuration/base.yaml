@@ -10,3 +10,4 @@ email_client:
   base_url: "localhost:8000"
   sender_email: "test@gmail.com"
   auth_token: "secret-auth-token"
+  timeout_ms: 10000

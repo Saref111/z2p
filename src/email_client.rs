@@ -35,12 +35,14 @@ struct SendEmailRequest<'a> {
 }
 
 impl EmailClient {
-    pub fn new(base_url: String, sender: SubscriberEmail, auth_token: SecretString) -> Self {
+    pub fn new(
+        base_url: String,
+        sender: SubscriberEmail,
+        auth_token: SecretString,
+        timeout: Duration,
+    ) -> Self {
         Self {
-            http_client: Client::builder()
-                .timeout(Duration::from_secs(10))
-                .build()
-                .unwrap(),
+            http_client: Client::builder().timeout(timeout).build().unwrap(),
             base_url: Url::parse(&base_url).expect("Failed parsing base email api url."),
             sender,
             auth_token,
@@ -132,7 +134,12 @@ mod test {
     }
 
     fn get_email_client(base_url: String) -> EmailClient {
-        EmailClient::new(base_url, get_email(), SecretString::from(Faker.fake::<String>()))
+        EmailClient::new(
+            base_url,
+            get_email(),
+            SecretString::from(Faker.fake::<String>()),
+            Duration::from_millis(10),
+        )
     }
 
     #[tokio::test]
@@ -203,7 +210,6 @@ mod test {
         assert_err!(outcome);
         ()
     }
-
 
     #[tokio::test]
     async fn send_email_times_out_if_server_takes_too_long() {
