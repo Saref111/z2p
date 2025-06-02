@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use reqwest::{Client, Url};
 use secrecy::{ExposeSecret, SecretString};
 use serde::Serialize;
@@ -35,7 +37,10 @@ struct SendEmailRequest<'a> {
 impl EmailClient {
     pub fn new(base_url: String, sender: SubscriberEmail, auth_token: SecretString) -> Self {
         Self {
-            http_client: Client::new(),
+            http_client: Client::builder()
+                .timeout(Duration::from_secs(10))
+                .build()
+                .unwrap(),
             base_url: Url::parse(&base_url).expect("Failed parsing base email api url."),
             sender,
             auth_token,
@@ -78,6 +83,8 @@ impl EmailClient {
 
 #[cfg(test)]
 mod test {
+    use std::time::Duration;
+
     use claim::{assert_err, assert_ok};
     use fake::{
         Fake, Faker,
@@ -174,6 +181,34 @@ mod test {
 
         Mock::given(any())
             .respond_with(ResponseTemplate::new(500))
+            .expect(1)
+            .mount(&mock_server)
+            .await;
+
+        let subscriber_email = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let subject: String = Sentence(1..2).fake();
+        let content: String = Paragraph(1..10).fake();
+
+        let outcome = email_client
+            .send_email(subscriber_email, subject, &content, &content)
+            .await;
+
+        assert_err!(outcome);
+        ()
+    }
+
+
+    #[tokio::test]
+    async fn send_email_times_out_if_server_takes_too_long() {
+        let mock_server = MockServer::start().await;
+        let sender = SubscriberEmail::parse(SafeEmail().fake()).unwrap();
+        let auth_token: String = Faker.fake();
+        let email_client =
+            EmailClient::new(mock_server.uri(), sender, SecretString::from(auth_token));
+
+        let response = ResponseTemplate::new(500).set_delay(Duration::from_secs(20));
+        Mock::given(any())
+            .respond_with(response)
             .expect(1)
             .mount(&mock_server)
             .await;
