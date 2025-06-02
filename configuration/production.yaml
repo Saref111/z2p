@@ -3,5 +3,5 @@ app:
 database:
   require_ssl: true
 email_client:
-  base_url: "https://api.elasticemail.com/v2/email/send"
-  sender_email: "noreply@z2p.com"
+  base_url: "https://api.mailersend.com/"
+  sender_email: "noreply@test-r83ql3p28rmgzw1j.mlsender.net"

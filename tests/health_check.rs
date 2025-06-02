@@ -60,7 +60,11 @@ pub async fn spawn_app() -> TestApp {
         .email_client
         .sender()
         .expect("Invalid sender email address.");
-    let email_client = EmailClient::new(config.email_client.base_url, email_sender);
+    let email_client = EmailClient::new(
+        config.email_client.base_url,
+        email_sender,
+        config.email_client.auth_token,
+    );
 
     let connection_pool = configure_database(&config.database).await;
 

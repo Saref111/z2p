@@ -18,7 +18,11 @@ async fn main() -> std::io::Result<()> {
         .email_client
         .sender()
         .expect("Invalid sender email address.");
-    let email_client = EmailClient::new(config.email_client.base_url, email_sender);
+    let email_client = EmailClient::new(
+        config.email_client.base_url,
+        email_sender,
+        config.email_client.auth_token,
+    );
 
     let address = format!("{}:{}", config.app.host, config.app.port);
     let connection_pool = PgPoolOptions::new()
