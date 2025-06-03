@@ -28,7 +28,7 @@ impl TryFrom<String> for SubscriberEmail {
 #[cfg(test)]
 mod test {
     use crate::domain::SubscriberEmail;
-    use claim::assert_err;
+    use claims::assert_err;
     use fake::{Fake, faker::internet::en::SafeEmail};
     use quickcheck::{Arbitrary, Gen};
 
