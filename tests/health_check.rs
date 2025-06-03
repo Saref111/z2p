@@ -6,6 +6,7 @@ use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use z2p::{
     configuration::{DatabaseSettings, get_configuration},
+    email_client::EmailClient,
     telemetry::{get_subscriber, init_subscriber},
 };
 
@@ -55,12 +56,25 @@ pub async fn spawn_app() -> TestApp {
     let mut config = get_configuration().expect("Failed to read configuration");
     config.database.database_name = Uuid::new_v4().to_string();
 
+    let email_sender = config
+        .email_client
+        .sender()
+        .expect("Invalid sender email address.");
+
+    let timeout = config.email_client.timeout();
+    let email_client = EmailClient::new(
+        config.email_client.base_url,
+        email_sender,
+        config.email_client.auth_token,
+        timeout,
+    );
+
     let connection_pool = configure_database(&config.database).await;
 
     let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port.");
     let port = listener.local_addr().unwrap().port();
-    let server =
-        z2p::startup::run(listener, connection_pool.clone()).expect("Failed to bind address.");
+    let server = z2p::startup::run(listener, connection_pool.clone(), email_client)
+        .expect("Failed to bind address.");
 
     let _ = tokio::spawn(server);
 
