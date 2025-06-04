@@ -4,9 +4,7 @@ use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use z2p::{
-    configuration::{DatabaseSettings, get_configuration},
-    email_client::EmailClient,
-    telemetry::{get_subscriber, init_subscriber},
+    configuration::{get_configuration, DatabaseSettings}, email_client::EmailClient, startup::get_connection_pull, telemetry::{get_subscriber, init_subscriber}
 };
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -52,33 +50,21 @@ pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
 pub async fn spawn_app() -> TestApp {
     Lazy::force(&TRACING);
 
-    let mut config = get_configuration().expect("Failed to read configuration");
-    config.database.database_name = Uuid::new_v4().to_string();
+    let config = {
+        let mut config = get_configuration().expect("Failed to read configuration");
+        config.database.database_name = Uuid::new_v4().to_string();
+        config.app.port = 0;
+        config
+    };
 
-    let email_sender = config
-        .email_client
-        .sender()
-        .expect("Invalid sender email address.");
+    configure_database(&config.database).await;
 
-    let timeout = config.email_client.timeout();
-    let email_client = EmailClient::new(
-        config.email_client.base_url,
-        email_sender,
-        config.email_client.auth_token,
-        timeout,
-    );
-
-    let connection_pool = configure_database(&config.database).await;
-
-    let listener = TcpListener::bind("127.0.0.1:0").expect("Failed to bind random port.");
-    let port = listener.local_addr().unwrap().port();
-    let server = z2p::startup::run(listener, connection_pool.clone(), email_client)
-        .expect("Failed to bind address.");
+    let server = z2p::startup::build(&config).expect("Failed to build application");
 
     let _ = tokio::spawn(server);
 
     TestApp {
-        address: format!("http://127.0.0.1:{port}"),
-        db_pool: connection_pool.clone(),
+        address: todo!(),
+        db_pool: get_connection_pull(&config.database),
     }
 }
