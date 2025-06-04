@@ -23,9 +23,9 @@ impl Application {
 
         let timeout = config.email_client.timeout();
         let email_client = EmailClient::new(
-            config.email_client.base_url.clone(),
+            config.email_client.base_url,
             email_sender,
-            config.email_client.auth_token.clone(),
+            config.email_client.auth_token,
             timeout,
         );
 

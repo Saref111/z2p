@@ -1,4 +1,5 @@
 use once_cell::sync::Lazy;
+use reqwest::Response;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use z2p::{
@@ -23,6 +24,18 @@ static TRACING: Lazy<()> = Lazy::new(|| {
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+}
+
+impl TestApp {
+    pub async fn post_subscription(&self, body: String) -> Response {
+        reqwest::Client::new()
+            .post(format!("{}/subscriptions", self.address))
+            .body(body)
+            .header("Content-type", "application/x-www-form-urlencoded")
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
 }
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
