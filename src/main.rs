@@ -1,6 +1,6 @@
 use z2p::{
     configuration::get_configuration,
-    startup::build,
+    startup::Application,
     telemetry::{get_subscriber, init_subscriber},
 };
 
@@ -11,7 +11,7 @@ async fn main() -> std::io::Result<()> {
 
     let config = get_configuration().expect("Failed to read configuration");
 
-    let server = build(&config)?;
-    server.await?;
+    let app = Application::build(config).await?;
+    app.run_until_stopped().await?;
     Ok(())
 }

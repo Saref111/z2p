@@ -1,10 +1,10 @@
-use std::net::TcpListener;
-
 use once_cell::sync::Lazy;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use z2p::{
-    configuration::{get_configuration, DatabaseSettings}, email_client::EmailClient, startup::get_connection_pull, telemetry::{get_subscriber, init_subscriber}
+    configuration::{DatabaseSettings, get_configuration},
+    startup::{Application, get_connection_pull},
+    telemetry::{get_subscriber, init_subscriber},
 };
 
 static TRACING: Lazy<()> = Lazy::new(|| {
@@ -59,12 +59,15 @@ pub async fn spawn_app() -> TestApp {
 
     configure_database(&config.database).await;
 
-    let server = z2p::startup::build(&config).expect("Failed to build application");
+    let app = Application::build(config.clone())
+        .await
+        .expect("Failed to build the application");
 
-    let _ = tokio::spawn(server);
+    let address = format!("http://127.0.0.1:{}", app.get_port());
+    let _ = tokio::spawn(app.run_until_stopped());
 
     TestApp {
-        address: todo!(),
+        address,
         db_pool: get_connection_pull(&config.database),
     }
 }
