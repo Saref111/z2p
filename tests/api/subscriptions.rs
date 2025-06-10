@@ -88,3 +88,41 @@ async fn subscribe_send_confirmation_email_for_valid_data() {
 
     app.post_subscription(body.into()).await;
 }
+
+#[tokio::test]
+async fn subscribe_send_confirmation_email_with_link() {
+    let app = spawn_app().await;
+
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    Mock::given(path("v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscription(body.into()).await;
+
+    let received_request = &app
+        .email_server
+        .received_requests()
+        .await
+        .unwrap()[0];
+
+    let body: serde_json::Value = serde_json::from_slice(&received_request.body).unwrap();
+
+    let get_link = |s: &str| {
+        let links = linkify::LinkFinder::new()
+            .links(s)
+            .filter(|l| *l.kind() == linkify::LinkKind::Url)
+            .collect::<Vec<_>>();
+
+        assert_eq!(links.len(), 1);
+        links[0].as_str().to_owned()
+    };
+
+    let html_link = get_link(body["html"].as_str().unwrap());
+    let text_link = get_link(body["text"].as_str().unwrap());
+
+    assert_eq!(html_link, text_link)
+}

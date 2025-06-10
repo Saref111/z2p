@@ -2,10 +2,7 @@ use actix_web::{HttpResponse, Responder, web};
 use sqlx::{PgPool, types::chrono::Utc};
 use uuid::Uuid;
 
-use crate::{
-    domain::NewSubscriber,
-    email_client::EmailClient,
-};
+use crate::{domain::NewSubscriber, email_client::EmailClient};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -35,12 +32,14 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
+    let confirmation_link = "https://somelinktomyapi.com";
+
     if email_client
         .send_email(
             new_subscriber.email,
             "HELLO!".into(),
-            "Hello new subscriber",
-            "Hello new subscriber",
+            &format!("Hello new subscriber <a href=\"{}\">Click here</a>", confirmation_link),
+            &format!("Hello new subscriber Click here: {}", confirmation_link),
         )
         .await
         .is_err()
