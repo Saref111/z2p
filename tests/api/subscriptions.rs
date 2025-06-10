@@ -1,9 +1,21 @@
+use wiremock::{
+    Mock, ResponseTemplate,
+    matchers::{method, path},
+};
+
 use crate::helpers::spawn_app;
 
 #[tokio::test]
 async fn subscribe_returns_200_for_valid_form_data() {
     let app = spawn_app().await;
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    Mock::given(path("v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
 
     let response = app.post_subscription(body.into()).await;
 
@@ -59,4 +71,20 @@ async fn subscribe_returns_a_400_when_fields_are_present_but_empty() {
             description
         )
     }
+}
+
+#[tokio::test]
+async fn subscribe_send_confirmation_email_for_valid_data() {
+    let app = spawn_app().await;
+
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    Mock::given(path("v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscription(body.into()).await;
 }

@@ -5,6 +5,7 @@ async fn health_check_works() {
     let TestApp {
         address,
         db_pool: _,
+        email_server: _,
     } = spawn_app().await;
 
     let client = reqwest::Client::new();
