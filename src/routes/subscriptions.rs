@@ -2,7 +2,10 @@ use actix_web::{HttpResponse, Responder, web};
 use sqlx::{PgPool, types::chrono::Utc};
 use uuid::Uuid;
 
-use crate::{domain::NewSubscriber, email_client::EmailClient};
+use crate::{
+    domain::{NewSubscriber, SubscriberEmail},
+    email_client::EmailClient,
+};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -32,15 +35,7 @@ pub async fn subscribe(
         return HttpResponse::InternalServerError().finish();
     }
 
-    let confirmation_link = "https://somelinktomyapi.com";
-
-    if email_client
-        .send_email(
-            new_subscriber.email,
-            "HELLO!".into(),
-            &format!("Hello new subscriber <a href=\"{}\">Click here</a>", confirmation_link),
-            &format!("Hello new subscriber Click here: {}", confirmation_link),
-        )
+    if send_email(email_client, new_subscriber.email)
         .await
         .is_err()
     {
@@ -48,6 +43,29 @@ pub async fn subscribe(
     }
 
     HttpResponse::Ok().finish()
+}
+
+#[tracing::instrument(
+    name = "Sending a confirmation email to a new subscriber",
+    skip(email_client, email)
+)]
+pub async fn send_email(
+    email_client: web::Data<EmailClient>,
+    email: SubscriberEmail,
+) -> Result<(), reqwest::Error> {
+    let confirmation_link = "https://somelinktomyapi.com";
+
+    email_client
+        .send_email(
+            email,
+            "HELLO!".into(),
+            &format!(
+                "Hello new subscriber <a href=\"{}\">Click here</a>",
+                confirmation_link
+            ),
+            &format!("Hello new subscriber Click here: {}", confirmation_link),
+        )
+        .await
 }
 
 #[tracing::instrument(

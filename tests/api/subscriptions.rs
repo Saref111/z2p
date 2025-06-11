@@ -103,11 +103,7 @@ async fn subscribe_send_confirmation_email_with_link() {
 
     app.post_subscription(body.into()).await;
 
-    let received_request = &app
-        .email_server
-        .received_requests()
-        .await
-        .unwrap()[0];
+    let received_request = &app.email_server.received_requests().await.unwrap()[0];
 
     let body: serde_json::Value = serde_json::from_slice(&received_request.body).unwrap();
 
