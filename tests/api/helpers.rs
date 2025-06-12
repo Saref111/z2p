@@ -1,5 +1,5 @@
 use once_cell::sync::Lazy;
-use reqwest::Response;
+use reqwest::{Response, Url};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::MockServer;
@@ -29,6 +29,12 @@ pub struct TestApp {
     pub port: u16,
 }
 
+#[derive(Debug)]
+pub struct ConfirmationLinks {
+    pub text: Url,
+    pub html: Url,
+}
+
 impl TestApp {
     pub async fn post_subscription(&self, body: String) -> Response {
         reqwest::Client::new()
@@ -38,6 +44,31 @@ impl TestApp {
             .send()
             .await
             .expect("Failed to execute request.")
+    }
+
+    pub fn get_confirmation_links(&self, email_request: &wiremock::Request) -> ConfirmationLinks {
+        let body: serde_json::Value = serde_json::from_slice(&email_request.body).unwrap();
+
+        let get_link = |s: &str| {
+            let links = linkify::LinkFinder::new()
+                .links(s)
+                .filter(|l| *l.kind() == linkify::LinkKind::Url)
+                .collect::<Vec<_>>();
+
+            assert_eq!(links.len(), 1);
+            let raw_link = links[0].as_str().to_owned();
+            let mut link = Url::parse(&raw_link).unwrap();
+
+            link.set_port(Some(self.port)).unwrap();
+
+            assert_eq!(link.host_str().unwrap(), "127.0.0.1");
+            link
+        };
+
+        let text = get_link(body["text"].as_str().unwrap());
+        let html = get_link(body["html"].as_str().unwrap());
+
+        ConfirmationLinks { text, html }
     }
 }
 
