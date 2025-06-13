@@ -77,9 +77,8 @@ impl EmailClient {
             )
             .json(&body)
             .send()
-            .await?;
-            // .error_for_status()?;
-        dbg!(mr);
+            .await?
+            .error_for_status()?;
 
         Ok(())
     }
