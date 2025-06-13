@@ -69,7 +69,7 @@ impl EmailClient {
             subject: &subject,
         };
 
-        self.http_client
+        let mr = self.http_client
             .post(url)
             .header(
                 "Authorization",
@@ -77,8 +77,10 @@ impl EmailClient {
             )
             .json(&body)
             .send()
-            .await?
-            .error_for_status()?;
+            .await?;
+            // .error_for_status()?;
+        dbg!(mr);
+
         Ok(())
     }
 }

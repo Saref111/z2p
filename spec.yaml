@@ -16,9 +16,12 @@ services:
     routes:
     - path: "/"
     envs:
-      - key: APP_APPLICATION__BASE_URL
+      - key: APP_APP__BASE_URL
         scope: RUN_TIME
         value: ${APP_URL}
+      - key: APP_EMAIL_CLIENT__AUTH_TOKEN
+        scope: RUN_TIME
+        value: ""
       - key: APP_DATABASE__USERNAME
         scope: RUN_TIME
         value: ${newsletter.USERNAME}
