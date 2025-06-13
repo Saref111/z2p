@@ -28,7 +28,7 @@ tracing-error = "0.2.1"
 serde-aux = "4.7.0"
 unicode-segmentation = "1.12.0"
 validator = "0.20.0"
-rand = "0.9.1"
+rand = { version = "0.9.1", features = ["std_rng"] }
 reqwest = { version = "0.12.20", default-features = false, features = ["json", "rustls-tls"] }
 
 
