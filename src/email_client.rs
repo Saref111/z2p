@@ -73,12 +73,12 @@ impl EmailClient {
             .post(url)
             .header(
                 "Authorization",
-                "Bearer: ".to_owned() + self.auth_token.expose_secret(),
+                "Bearer ".to_owned() + self.auth_token.expose_secret(),
             )
             .json(&body)
             .send()
-            .await?;
-            // .error_for_status()?;
+            .await?
+            .error_for_status()?;
         dbg!(mr);
 
         Ok(())
