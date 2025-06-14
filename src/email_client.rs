@@ -69,7 +69,7 @@ impl EmailClient {
             subject: &subject,
         };
 
-        let mr = self.http_client
+        self.http_client
             .post(url)
             .header(
                 "Authorization",
