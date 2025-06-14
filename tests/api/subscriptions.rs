@@ -125,3 +125,19 @@ async fn subscribe_send_confirmation_email_with_link() {
 
     assert_eq!(confirmation_links.html, confirmation_links.text);
 }
+
+#[tokio::test]
+async fn send_two_confirmation_emails_if_user_subscribes_twice() {
+    let app = spawn_app().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    Mock::given(path("v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(2)
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscription(body.into()).await;
+    app.post_subscription(body.into()).await;
+}

@@ -29,10 +29,32 @@ pub async fn subscribe(
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseURL>,
 ) -> impl Responder {
-    let new_subscriber = match form.0.try_into() {
+    let new_subscriber: NewSubscriber = match form.0.try_into() {
         Ok(s) => s,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
+
+    match try_find_subscriber_by_email(&db_pool, &new_subscriber.email).await {
+        Ok(Some(id)) => {
+            match try_get_stored_subscription_token(&db_pool, id, &new_subscriber.email)
+                .await
+            {
+                Ok(Some(token)) => {
+                    if send_email(email_client, new_subscriber.email, base_url, &token)
+                        .await
+                        .is_err()
+                    {
+                        return HttpResponse::InternalServerError().finish();
+                    }
+                    return HttpResponse::Ok().finish();
+                }
+                Ok(None) => return HttpResponse::Conflict().finish(),
+                Err(_) => return HttpResponse::InternalServerError().finish(),
+            }
+        }
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+        _ => {}
+    }
 
     let mut transaction = match db_pool.begin().await {
         Ok(t) => t,
@@ -96,6 +118,49 @@ pub async fn send_email(
             &format!("Hello new subscriber Click here: {}", confirmation_link),
         )
         .await
+}
+
+#[tracing::instrument(name = "Trying to find existing subscriber by email")]
+async fn try_find_subscriber_by_email(
+    pool: &PgPool,
+    email: &SubscriberEmail,
+) -> Result<Option<Uuid>, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"
+            SELECT id FROM subscriptions WHERE email = $1
+        "#,
+        email.as_ref()
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to execute query: {:?}", err);
+        err
+    })?;
+
+    Ok(result.map(|r| r.id))
+}
+
+#[tracing::instrument(name = "Getting subscription token")]
+async fn try_get_stored_subscription_token(
+    pool: &PgPool,
+    subscriber_id: Uuid,
+    subscriber_email: &SubscriberEmail,
+) -> Result<Option<String>, sqlx::Error> {
+    let record = sqlx::query!(
+        r#"
+        SELECT subscription_token FROM subscription_tokens WHERE subscriber_id = $1
+    "#,
+        subscriber_id
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to execute query: {:?}", err);
+        err
+    })?;
+
+    Ok(record.map(|r| r.subscription_token))
 }
 
 #[tracing::instrument(
