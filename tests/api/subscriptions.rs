@@ -141,3 +141,30 @@ async fn send_two_confirmation_emails_if_user_subscribes_twice() {
     app.post_subscription(body.into()).await;
     app.post_subscription(body.into()).await;
 }
+
+#[tokio::test]
+async fn subscribe_returns_409_when_confirmed_user_tries_to_subscribe_again() {
+    let app = spawn_app().await;
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    Mock::given(path("v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscription(body.into()).await;
+    let email_request = &app.email_server.received_requests().await.unwrap()[0];
+    let confirmation_links = app.get_confirmation_links(email_request);
+
+    reqwest::get(confirmation_links.html)
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
+
+    let resp = app.post_subscription(body.into()).await;
+
+    assert_eq!(resp.status().as_u16(), 409);
+}

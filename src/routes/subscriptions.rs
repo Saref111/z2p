@@ -35,11 +35,16 @@ pub async fn subscribe(
     };
 
     match try_find_subscriber_by_email(&db_pool, &new_subscriber.email).await {
-        Ok(Some(id)) => {
-            match try_get_stored_subscription_token(&db_pool, id, &new_subscriber.email)
+        Ok(Some((id, status))) => {
+
+            if status != "pending_confirmation" {
+                return HttpResponse::Conflict().finish();
+            }
+
+            match get_stored_subscription_token(&db_pool, id, &new_subscriber.email)
                 .await
             {
-                Ok(Some(token)) => {
+                Ok(token) => {
                     if send_email(email_client, new_subscriber.email, base_url, &token)
                         .await
                         .is_err()
@@ -48,7 +53,6 @@ pub async fn subscribe(
                     }
                     return HttpResponse::Ok().finish();
                 }
-                Ok(None) => return HttpResponse::Conflict().finish(),
                 Err(_) => return HttpResponse::InternalServerError().finish(),
             }
         }
@@ -124,10 +128,10 @@ pub async fn send_email(
 async fn try_find_subscriber_by_email(
     pool: &PgPool,
     email: &SubscriberEmail,
-) -> Result<Option<Uuid>, sqlx::Error> {
+) -> Result<Option<(Uuid, String)>, sqlx::Error> {
     let result = sqlx::query!(
         r#"
-            SELECT id FROM subscriptions WHERE email = $1
+            SELECT id, status FROM subscriptions WHERE email = $1
         "#,
         email.as_ref()
     )
@@ -138,29 +142,29 @@ async fn try_find_subscriber_by_email(
         err
     })?;
 
-    Ok(result.map(|r| r.id))
+    Ok(result.map(|r| (r.id, r.status)))
 }
 
 #[tracing::instrument(name = "Getting subscription token")]
-async fn try_get_stored_subscription_token(
+async fn get_stored_subscription_token(
     pool: &PgPool,
     subscriber_id: Uuid,
     subscriber_email: &SubscriberEmail,
-) -> Result<Option<String>, sqlx::Error> {
+) -> Result<String, sqlx::Error> {
     let record = sqlx::query!(
         r#"
         SELECT subscription_token FROM subscription_tokens WHERE subscriber_id = $1
     "#,
         subscriber_id
     )
-    .fetch_optional(pool)
+    .fetch_one(pool)
     .await
     .map_err(|err| {
         tracing::error!("Failed to execute query: {:?}", err);
         err
     })?;
 
-    Ok(record.map(|r| r.subscription_token))
+    Ok(record.subscription_token)
 }
 
 #[tracing::instrument(
