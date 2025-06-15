@@ -1,10 +1,9 @@
 use actix_web::{HttpResponse, Responder, web};
-use rand::{Rng, distr::Alphanumeric};
 use sqlx::{PgPool, Postgres, Transaction, types::chrono::Utc};
 use uuid::Uuid;
 
 use crate::{
-    domain::{NewSubscriber, SubscriberEmail},
+    domain::{ConfirmationToken, NewSubscriber, SubscriberEmail},
     email_client::EmailClient,
     startup::ApplicationBaseURL,
 };
@@ -36,18 +35,25 @@ pub async fn subscribe(
 
     match try_find_subscriber_by_email(&db_pool, &new_subscriber.email).await {
         Ok(Some((id, status))) => {
-
             if status != "pending_confirmation" {
                 return HttpResponse::Conflict().finish();
             }
 
-            match get_stored_subscription_token(&db_pool, id, &new_subscriber.email)
-                .await
-            {
+            match get_stored_confirmation_token(&db_pool, id, &new_subscriber.email).await {
                 Ok(token) => {
-                    if send_email(email_client, new_subscriber.email, base_url, &token)
-                        .await
-                        .is_err()
+                    let confirmation_token = match ConfirmationToken::parse(token) {
+                        Ok(t) => t,
+                        Err(_) => return HttpResponse::BadRequest().finish(),
+                    };
+
+                    if send_email(
+                        email_client,
+                        new_subscriber.email,
+                        base_url,
+                        confirmation_token.as_ref(),
+                    )
+                    .await
+                    .is_err()
                     {
                         return HttpResponse::InternalServerError().finish();
                     }
@@ -70,8 +76,8 @@ pub async fn subscribe(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let confirmation_token = get_subscription_token();
-    if store_token(&mut transaction, subscriber_id, &confirmation_token)
+    let confirmation_token = ConfirmationToken::new();
+    if store_token(&mut transaction, subscriber_id, confirmation_token.as_ref())
         .await
         .is_err()
     {
@@ -82,7 +88,7 @@ pub async fn subscribe(
         email_client,
         new_subscriber.email,
         base_url,
-        &confirmation_token,
+        confirmation_token.as_ref(),
     )
     .await
     .is_err()
@@ -145,8 +151,8 @@ async fn try_find_subscriber_by_email(
     Ok(result.map(|r| (r.id, r.status)))
 }
 
-#[tracing::instrument(name = "Getting subscription token")]
-async fn get_stored_subscription_token(
+#[tracing::instrument(name = "Getting confirmation token")]
+async fn get_stored_confirmation_token(
     pool: &PgPool,
     subscriber_id: Uuid,
     subscriber_email: &SubscriberEmail,
@@ -194,14 +200,6 @@ pub async fn insert_subscriber(
     })?;
 
     Ok(id)
-}
-
-fn get_subscription_token() -> String {
-    let mut rng = rand::rng();
-    std::iter::repeat_with(|| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(25)
-        .collect()
 }
 
 async fn store_token(

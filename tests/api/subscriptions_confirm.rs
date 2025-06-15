@@ -67,7 +67,6 @@ async fn click_on_confirmation_link_confirms_the_subscriber() {
     assert_eq!(saved.status, "confirmed");
 }
 
-
 #[tokio::test]
 async fn second_click_on_confirmation_link_changes_nothing() {
     let app = spawn_app().await;
@@ -105,7 +104,13 @@ async fn second_click_on_confirmation_link_changes_nothing() {
         .await
         .expect("Failed to fetch saved data from db.");
 
-    assert_eq!(saved_after_second_click.email, saved_after_first_click.email);
+    assert_eq!(
+        saved_after_second_click.email,
+        saved_after_first_click.email
+    );
     assert_eq!(saved_after_second_click.name, saved_after_first_click.name);
-    assert_eq!(saved_after_second_click.status, saved_after_first_click.status);
+    assert_eq!(
+        saved_after_second_click.status,
+        saved_after_first_click.status
+    );
 }
