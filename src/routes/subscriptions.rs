@@ -48,7 +48,7 @@ pub async fn subscribe(
 
                     if send_email(
                         email_client,
-                        new_subscriber.email,
+                        &new_subscriber,
                         base_url,
                         confirmation_token.as_ref(),
                     )
@@ -86,7 +86,7 @@ pub async fn subscribe(
 
     if send_email(
         email_client,
-        new_subscriber.email,
+        &new_subscriber,
         base_url,
         confirmation_token.as_ref(),
     )
@@ -104,11 +104,11 @@ pub async fn subscribe(
 
 #[tracing::instrument(
     name = "Sending a confirmation email to a new subscriber",
-    skip(email_client, email, base_url)
+    skip(email_client, subscriber, base_url)
 )]
 pub async fn send_email(
     email_client: web::Data<EmailClient>,
-    email: SubscriberEmail,
+    subscriber: &NewSubscriber,
     base_url: web::Data<ApplicationBaseURL>,
     confirmation_token: &str,
 ) -> Result<(), reqwest::Error> {
@@ -119,13 +119,13 @@ pub async fn send_email(
 
     email_client
         .send_email(
-            email,
+            subscriber.email.to_owned(),
             "HELLO!".into(),
             &format!(
                 "Hello new subscriber <a href=\"{}\">Click here</a>",
                 confirmation_link
             ),
-            &format!("Hello new subscriber Click here: {}", confirmation_link),
+            &get_email_text(subscriber.name.as_ref(), &confirmation_link),
         )
         .await
 }
@@ -223,4 +223,21 @@ async fn store_token(
     })?;
 
     Ok(())
+}
+
+fn get_email_text(name: &str, link: &str) -> String {
+    format!(
+        "
+        🎉 Welcome, {}!
+
+        Thank you for subscribing!
+
+        To start receiving updates, please confirm your subscription by clicking the link below:
+
+        {}
+
+        If you did not request this subscription, you can safely ignore this email.
+    ",
+        name, link
+    )
 }
