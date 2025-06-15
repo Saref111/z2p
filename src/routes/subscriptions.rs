@@ -200,6 +200,7 @@ pub async fn insert_subscriber(
     Ok(id)
 }
 
+#[tracing::instrument(name = "Saving new confirmation token", skip(transaction))]
 async fn store_token(
     transaction: &mut Transaction<'_, Postgres>,
     id: Uuid,
@@ -245,7 +246,6 @@ fn get_email_html(name: &str, link: &str) -> String {
     ctx.insert("name", name);
     ctx.insert("link", link);
     let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
-    tera
-        .render("confirm_subscription_letter.html", &ctx)
+    tera.render("confirm_subscription_letter.html", &ctx)
         .expect("Failed rendering email template")
 }
