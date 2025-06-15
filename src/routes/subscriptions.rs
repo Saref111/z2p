@@ -1,13 +1,13 @@
 use actix_web::{HttpResponse, Responder, web};
-use rand::{Rng, distr::Alphanumeric};
 use sqlx::{PgPool, Postgres, Transaction, types::chrono::Utc};
 use uuid::Uuid;
 
 use crate::{
-    domain::{NewSubscriber, SubscriberEmail},
+    domain::{ConfirmationToken, NewSubscriber, SubscriberEmail},
     email_client::EmailClient,
     startup::ApplicationBaseURL,
 };
+use tera::{self, Context};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -29,10 +29,43 @@ pub async fn subscribe(
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseURL>,
 ) -> impl Responder {
-    let new_subscriber = match form.0.try_into() {
+    let new_subscriber: NewSubscriber = match form.0.try_into() {
         Ok(s) => s,
         Err(_) => return HttpResponse::BadRequest().finish(),
     };
+
+    match try_find_subscriber_by_email(&db_pool, &new_subscriber.email).await {
+        Ok(Some((id, status))) => {
+            if status != "pending_confirmation" {
+                return HttpResponse::Conflict().finish();
+            }
+
+            match get_stored_confirmation_token(&db_pool, id, &new_subscriber.email).await {
+                Ok(token) => {
+                    let confirmation_token = match ConfirmationToken::parse(token) {
+                        Ok(t) => t,
+                        Err(_) => return HttpResponse::BadRequest().finish(),
+                    };
+
+                    if send_email(
+                        email_client,
+                        &new_subscriber,
+                        base_url,
+                        confirmation_token.as_ref(),
+                    )
+                    .await
+                    .is_err()
+                    {
+                        return HttpResponse::InternalServerError().finish();
+                    }
+                    return HttpResponse::Ok().finish();
+                }
+                Err(_) => return HttpResponse::InternalServerError().finish(),
+            }
+        }
+        Err(_) => return HttpResponse::InternalServerError().finish(),
+        _ => {}
+    }
 
     let mut transaction = match db_pool.begin().await {
         Ok(t) => t,
@@ -44,8 +77,8 @@ pub async fn subscribe(
         Err(_) => return HttpResponse::InternalServerError().finish(),
     };
 
-    let confirmation_token = get_subscription_token();
-    if store_token(&mut transaction, subscriber_id, &confirmation_token)
+    let confirmation_token = ConfirmationToken::new();
+    if store_token(&mut transaction, subscriber_id, confirmation_token.as_ref())
         .await
         .is_err()
     {
@@ -54,9 +87,9 @@ pub async fn subscribe(
 
     if send_email(
         email_client,
-        new_subscriber.email,
+        &new_subscriber,
         base_url,
-        &confirmation_token,
+        confirmation_token.as_ref(),
     )
     .await
     .is_err()
@@ -72,11 +105,11 @@ pub async fn subscribe(
 
 #[tracing::instrument(
     name = "Sending a confirmation email to a new subscriber",
-    skip(email_client, email, base_url)
+    skip(email_client, subscriber, base_url)
 )]
 pub async fn send_email(
     email_client: web::Data<EmailClient>,
-    email: SubscriberEmail,
+    subscriber: &NewSubscriber,
     base_url: web::Data<ApplicationBaseURL>,
     confirmation_token: &str,
 ) -> Result<(), reqwest::Error> {
@@ -87,15 +120,55 @@ pub async fn send_email(
 
     email_client
         .send_email(
-            email,
+            subscriber.email.to_owned(),
             "HELLO!".into(),
-            &format!(
-                "Hello new subscriber <a href=\"{}\">Click here</a>",
-                confirmation_link
-            ),
-            &format!("Hello new subscriber Click here: {}", confirmation_link),
+            &get_email_html(subscriber.name.as_ref(), &confirmation_link),
+            &get_email_text(subscriber.name.as_ref(), &confirmation_link),
         )
         .await
+}
+
+#[tracing::instrument(name = "Trying to find existing subscriber by email")]
+async fn try_find_subscriber_by_email(
+    pool: &PgPool,
+    email: &SubscriberEmail,
+) -> Result<Option<(Uuid, String)>, sqlx::Error> {
+    let result = sqlx::query!(
+        r#"
+            SELECT id, status FROM subscriptions WHERE email = $1
+        "#,
+        email.as_ref()
+    )
+    .fetch_optional(pool)
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to execute query: {:?}", err);
+        err
+    })?;
+
+    Ok(result.map(|r| (r.id, r.status)))
+}
+
+#[tracing::instrument(name = "Getting confirmation token")]
+async fn get_stored_confirmation_token(
+    pool: &PgPool,
+    subscriber_id: Uuid,
+    subscriber_email: &SubscriberEmail,
+) -> Result<String, sqlx::Error> {
+    let record = sqlx::query!(
+        r#"
+        SELECT subscription_token FROM subscription_tokens WHERE subscriber_id = $1
+    "#,
+        subscriber_id
+    )
+    .fetch_one(pool)
+    .await
+    .map_err(|err| {
+        tracing::error!("Failed to execute query: {:?}", err);
+        err
+    })?;
+
+    Ok(record.subscription_token)
 }
 
 #[tracing::instrument(
@@ -127,14 +200,7 @@ pub async fn insert_subscriber(
     Ok(id)
 }
 
-fn get_subscription_token() -> String {
-    let mut rng = rand::rng();
-    std::iter::repeat_with(|| rng.sample(Alphanumeric))
-        .map(char::from)
-        .take(25)
-        .collect()
-}
-
+#[tracing::instrument(name = "Saving new confirmation token", skip(transaction))]
 async fn store_token(
     transaction: &mut Transaction<'_, Postgres>,
     id: Uuid,
@@ -156,4 +222,30 @@ async fn store_token(
     })?;
 
     Ok(())
+}
+
+fn get_email_text(name: &str, link: &str) -> String {
+    format!(
+        "
+        🎉 Welcome, {}!
+
+        Thank you for subscribing!
+
+        To start receiving updates, please confirm your subscription by clicking the link below:
+
+        {}
+
+        If you did not request this subscription, you can safely ignore this email.
+    ",
+        name, link
+    )
+}
+
+fn get_email_html(name: &str, link: &str) -> String {
+    let mut ctx = Context::new();
+    ctx.insert("name", name);
+    ctx.insert("link", link);
+    let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
+    tera.render("confirm_subscription_letter.html", &ctx)
+        .expect("Failed rendering email template")
 }
