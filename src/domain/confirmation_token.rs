@@ -30,9 +30,15 @@ impl ConfirmationToken {
     }
 }
 
+impl Default for ConfirmationToken {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 struct ConfirmationTokenVisitor;
 
-impl<'de> de::Visitor<'de> for ConfirmationTokenVisitor {
+impl de::Visitor<'_> for ConfirmationTokenVisitor {
     type Value = ConfirmationToken;
 
     fn expecting(&self, formatter: &mut std::fmt::Formatter) -> std::fmt::Result {
@@ -71,9 +77,8 @@ impl AsRef<str> for ConfirmationToken {
 
 #[cfg(test)]
 mod test {
-    use crate::domain::{confirmation_token::ConfirmationTokenVisitor, ConfirmationToken};
+    use crate::domain::ConfirmationToken;
     use claims::{assert_err, assert_ok};
-    use serde::{de::IntoDeserializer, Deserializer};
 
     #[test]
     fn a_25_grapheme_long_name_is_valid() {
