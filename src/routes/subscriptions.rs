@@ -7,6 +7,7 @@ use crate::{
     email_client::EmailClient,
     startup::ApplicationBaseURL,
 };
+use tera::{self, Context};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -121,10 +122,7 @@ pub async fn send_email(
         .send_email(
             subscriber.email.to_owned(),
             "HELLO!".into(),
-            &format!(
-                "Hello new subscriber <a href=\"{}\">Click here</a>",
-                confirmation_link
-            ),
+            &get_email_html(subscriber.name.as_ref(), &confirmation_link),
             &get_email_text(subscriber.name.as_ref(), &confirmation_link),
         )
         .await
@@ -240,4 +238,16 @@ fn get_email_text(name: &str, link: &str) -> String {
     ",
         name, link
     )
+}
+
+fn get_email_html(name: &str, link: &str) -> String {
+    let mut ctx = Context::new();
+    ctx.insert("name", name);
+    ctx.insert("link", link);
+    println!("{name}");
+    let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
+    let r = tera.render("confirm_subscription_letter.html", &ctx)
+        .expect("Failed rendering email template");
+    println!("{r}");
+    r
 }
