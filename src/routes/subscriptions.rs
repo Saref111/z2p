@@ -244,10 +244,8 @@ fn get_email_html(name: &str, link: &str) -> String {
     let mut ctx = Context::new();
     ctx.insert("name", name);
     ctx.insert("link", link);
-    println!("{name}");
     let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
-    let r = tera.render("confirm_subscription_letter.html", &ctx)
-        .expect("Failed rendering email template");
-    println!("{r}");
-    r
+    tera
+        .render("confirm_subscription_letter.html", &ctx)
+        .expect("Failed rendering email template")
 }
