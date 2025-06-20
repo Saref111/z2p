@@ -1,6 +1,6 @@
-use std::fmt::Display;
+use std::{error::Error, fmt::{Debug, Display}};
 
-use actix_web::{HttpResponse, Responder, ResponseError, web};
+use actix_web::{HttpResponse, ResponseError, web};
 use sqlx::{PgPool, Postgres, Transaction, types::chrono::Utc};
 use uuid::Uuid;
 
@@ -17,14 +17,25 @@ pub struct FormData {
     pub email: String,
 }
 
-#[derive(Debug)]
 pub struct StoreTokenError(sqlx::Error);
+
+impl Debug for StoreTokenError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        error_chain_fmt(self, f)
+    }
+}
+
+impl Error for StoreTokenError {
+    fn source(&self) -> Option<&(dyn Error + 'static)> {
+        Some(&self.0)
+    }
+}
 
 impl Display for StoreTokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "A database error was encountered while \
+            "\n\tA database error was encountered while \
             trying to store a subscription token."
         )
     }
@@ -260,4 +271,20 @@ fn get_email_html(name: &str, link: &str) -> String {
     let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
     tera.render("confirm_subscription_letter.html", &ctx)
         .expect("Failed rendering email template")
+}
+
+
+fn error_chain_fmt(
+    e: &impl Error,
+    f: &mut std::fmt::Formatter,
+) -> std::fmt::Result {
+    writeln!(f, "{}\n", e)?;
+    let mut current = e.source();
+
+    while let Some(cause) = current {
+        writeln!(f, "Caused by:\n\t{}", cause)?;
+        current = cause.source();
+    }
+
+    Ok(())
 }
