@@ -17,6 +17,48 @@ pub struct FormData {
     pub email: String,
 }
 
+#[derive(Debug)]
+pub enum SubscribeError {
+    ValidationError(String),
+    DatabaseError(sqlx::Error),
+    StoreTokenError(StoreTokenError),
+    SendEmailError(reqwest::Error),
+}
+
+impl Display for SubscribeError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "Failed to create a new subscriber.")
+    }
+}
+
+impl ResponseError for SubscribeError {}
+
+impl Error for SubscribeError {}
+
+impl From<reqwest::Error> for SubscribeError {
+    fn from(value: reqwest::Error) -> Self {
+        Self::SendEmailError(value)
+    }
+}
+
+impl From<String> for SubscribeError {
+    fn from(value: String) -> Self {
+        Self::ValidationError(value)
+    }
+}
+
+impl From<sqlx::Error> for SubscribeError {
+    fn from(value: sqlx::Error) -> Self {
+        Self::DatabaseError(value)
+    }
+}
+
+impl From<StoreTokenError> for SubscribeError {
+    fn from(value: StoreTokenError) -> Self {
+        Self::StoreTokenError(value)
+    }
+}
+
 pub struct StoreTokenError(sqlx::Error);
 
 impl Debug for StoreTokenError {
@@ -41,7 +83,8 @@ impl Display for StoreTokenError {
     }
 }
 
-impl ResponseError for StoreTokenError {}
+
+
 
 #[tracing::instrument(
     name = "Adding a new subscriber.",
@@ -56,7 +99,7 @@ pub async fn subscribe(
     db_pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseURL>,
-) -> Result<HttpResponse, actix_web::Error> {
+) -> Result<HttpResponse, SubscribeError> {
     let new_subscriber: NewSubscriber = match form.0.try_into() {
         Ok(s) => s,
         Err(_) => return Ok(HttpResponse::BadRequest().finish()),
