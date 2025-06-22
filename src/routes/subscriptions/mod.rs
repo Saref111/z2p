@@ -1,5 +1,5 @@
 mod errors;
 mod helpers;
-mod subscriptions;
+mod subscriptions_handler;
 
-pub use subscriptions::*;
+pub use subscriptions_handler::*;

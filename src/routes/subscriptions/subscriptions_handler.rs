@@ -12,8 +12,8 @@ use crate::{
 };
 
 use super::{
-        errors::{StoreTokenError, SubscribeError},
-        helpers::{get_email_html, get_email_text},
+    errors::{StoreTokenError, SubscribeError},
+    helpers::{get_email_html, get_email_text},
 };
 
 #[derive(serde::Deserialize)]
