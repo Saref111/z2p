@@ -62,7 +62,7 @@ impl Display for StoreTokenError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         write!(
             f,
-            "\n\tA database error was encountered while \
+            "A database error was encountered while \
             trying to store a subscription token."
         )
     }
@@ -113,7 +113,10 @@ pub async fn subscribe(
         return Ok(HttpResponse::Ok().finish());
     }
 
-    let mut transaction = db_pool.begin().await.context("Failed to acquire a Postgres connection from the pool.")?;
+    let mut transaction = db_pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool.")?;
 
     let subscriber_id = insert_subscriber(&new_subscriber, &mut transaction)
         .await
@@ -133,7 +136,10 @@ pub async fn subscribe(
     .await
     .context("Failed to send a confirmation email.")?;
 
-    transaction.commit().await.context("Failed to commit SQL transaction to store a new subscriber.")?;
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new subscriber.")?;
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -174,11 +180,7 @@ async fn try_find_subscriber_by_email(
         email.as_ref()
     )
     .fetch_optional(pool)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        err
-    })?;
+    .await?;
 
     Ok(result.map(|r| (r.id, r.status)))
 }
@@ -196,11 +198,7 @@ async fn get_stored_confirmation_token(
         subscriber_id
     )
     .fetch_one(pool)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        err
-    })?;
+    .await?;
 
     Ok(record.subscription_token)
 }
@@ -225,11 +223,7 @@ pub async fn insert_subscriber(
         Utc::now()
     )
     .execute(&mut **transaction)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        err
-    })?;
+    .await?;
 
     Ok(id)
 }
@@ -250,10 +244,7 @@ async fn store_token(
     )
     .execute(&mut **transaction)
     .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        StoreTokenError(err)
-    })?;
+    .map_err(StoreTokenError)?;
 
     Ok(())
 }
