@@ -32,6 +32,7 @@ rand = { version = "0.9.1", features = ["std_rng"] }
 reqwest = { version = "0.12.20", default-features = false, features = ["json", "rustls-tls"] }
 tera = "1.20.0"
 thiserror = "2.0.12"
+anyhow = "1.0.98"
 
 
 

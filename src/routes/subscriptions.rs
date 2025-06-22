@@ -4,6 +4,7 @@ use std::{
 };
 
 use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
+use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction, types::chrono::Utc};
 use uuid::Uuid;
 
@@ -12,7 +13,7 @@ use crate::{
     email_client::EmailClient,
     startup::ApplicationBaseURL,
 };
-use tera::{self, Context};
+use tera::{self, Context as TeraContext};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -24,8 +25,8 @@ pub struct FormData {
 pub enum SubscribeError {
     #[error("{0}")]
     ValidationError(String),
-    #[error("{1}")]
-    UnexpectedError(#[source] Box<dyn Error>, String),
+    #[error(transparent)]
+    UnexpectedError(#[from] anyhow::Error),
 }
 
 impl Debug for SubscribeError {
@@ -86,12 +87,7 @@ pub async fn subscribe(
 
     let existing_subscriber = try_find_subscriber_by_email(&db_pool, &new_subscriber.email)
         .await
-        .map_err(|e| {
-            SubscribeError::UnexpectedError(
-                Box::new(e),
-                "Failed to read data from database.".into(),
-            )
-        })?;
+        .context("Failed to read data from database.")?;
 
     if let Some((id, status)) = existing_subscriber {
         if status != "pending_confirmation" {
@@ -100,12 +96,7 @@ pub async fn subscribe(
 
         let token_string = get_stored_confirmation_token(&db_pool, id, &new_subscriber.email)
             .await
-            .map_err(|e| {
-                SubscribeError::UnexpectedError(
-                    Box::new(e),
-                    "Failed to read data from database.".into(),
-                )
-            })?;
+            .context("Failed to read data from database.")?;
 
         let confirmation_token =
             ConfirmationToken::parse(token_string).map_err(SubscribeError::ValidationError)?;
@@ -117,41 +108,21 @@ pub async fn subscribe(
             confirmation_token.as_ref(),
         )
         .await
-        .map_err(|e| {
-            SubscribeError::UnexpectedError(
-                Box::new(e),
-                "Failed to send a confirmation email.".into(),
-            )
-        })?;
+        .context("Failed to send a confirmation email.")?;
 
         return Ok(HttpResponse::Ok().finish());
     }
 
-    let mut transaction = db_pool.begin().await.map_err(|e| {
-        SubscribeError::UnexpectedError(
-            Box::new(e),
-            "Failed to acquire a Postgres connection from the pool.".into(),
-        )
-    })?;
+    let mut transaction = db_pool.begin().await.context("Failed to acquire a Postgres connection from the pool.")?;
 
     let subscriber_id = insert_subscriber(&new_subscriber, &mut transaction)
         .await
-        .map_err(|e| {
-            SubscribeError::UnexpectedError(
-                Box::new(e),
-                "Failed to insert a new subscriber in the database.".into(),
-            )
-        })?;
+        .context("Failed to insert a new subscriber in the database.")?;
 
     let confirmation_token = ConfirmationToken::new();
     store_token(&mut transaction, subscriber_id, confirmation_token.as_ref())
         .await
-        .map_err(|e| {
-            SubscribeError::UnexpectedError(
-                Box::new(e),
-                "Failed to store the confirmation token for a new subscriber.".into(),
-            )
-        })?;
+        .context("Failed to store the confirmation token for a new subscriber.")?;
 
     send_email(
         email_client,
@@ -160,16 +131,9 @@ pub async fn subscribe(
         confirmation_token.as_ref(),
     )
     .await
-    .map_err(|e| {
-        SubscribeError::UnexpectedError(Box::new(e), "Failed to send a confirmation email.".into())
-    })?;
+    .context("Failed to send a confirmation email.")?;
 
-    transaction.commit().await.map_err(|e| {
-        SubscribeError::UnexpectedError(
-            Box::new(e),
-            "Failed to commit SQL transaction to store a new subscriber.".into(),
-        )
-    })?;
+    transaction.commit().await.context("Failed to commit SQL transaction to store a new subscriber.")?;
     Ok(HttpResponse::Ok().finish())
 }
 
@@ -312,7 +276,7 @@ fn get_email_text(name: &str, link: &str) -> String {
 }
 
 fn get_email_html(name: &str, link: &str) -> String {
-    let mut ctx = Context::new();
+    let mut ctx = TeraContext::new();
     ctx.insert("name", name);
     ctx.insert("link", link);
     let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
