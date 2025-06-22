@@ -1,4 +1,7 @@
-use actix_web::{HttpResponse, Responder, web};
+use std::fmt::Debug;
+
+use actix_web::{HttpResponse, web};
+use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction, types::chrono::Utc};
 use uuid::Uuid;
 
@@ -7,7 +10,11 @@ use crate::{
     email_client::EmailClient,
     startup::ApplicationBaseURL,
 };
-use tera::{self, Context};
+
+use super::{
+    errors::{StoreTokenError, SubscribeError},
+    helpers::{get_email_html, get_email_text},
+};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
@@ -28,79 +35,66 @@ pub async fn subscribe(
     db_pool: web::Data<PgPool>,
     email_client: web::Data<EmailClient>,
     base_url: web::Data<ApplicationBaseURL>,
-) -> impl Responder {
-    let new_subscriber: NewSubscriber = match form.0.try_into() {
-        Ok(s) => s,
-        Err(_) => return HttpResponse::BadRequest().finish(),
-    };
+) -> Result<HttpResponse, SubscribeError> {
+    let new_subscriber: NewSubscriber =
+        form.0.try_into().map_err(SubscribeError::ValidationError)?;
 
-    match try_find_subscriber_by_email(&db_pool, &new_subscriber.email).await {
-        Ok(Some((id, status))) => {
-            if status != "pending_confirmation" {
-                return HttpResponse::Conflict().finish();
-            }
+    let existing_subscriber = try_find_subscriber_by_email(&db_pool, &new_subscriber.email)
+        .await
+        .context("Failed to read data from database.")?;
 
-            match get_stored_confirmation_token(&db_pool, id, &new_subscriber.email).await {
-                Ok(token) => {
-                    let confirmation_token = match ConfirmationToken::parse(token) {
-                        Ok(t) => t,
-                        Err(_) => return HttpResponse::BadRequest().finish(),
-                    };
-
-                    if send_email(
-                        email_client,
-                        &new_subscriber,
-                        base_url,
-                        confirmation_token.as_ref(),
-                    )
-                    .await
-                    .is_err()
-                    {
-                        return HttpResponse::InternalServerError().finish();
-                    }
-                    return HttpResponse::Ok().finish();
-                }
-                Err(_) => return HttpResponse::InternalServerError().finish(),
-            }
+    if let Some((id, status)) = existing_subscriber {
+        if status != "pending_confirmation" {
+            return Ok(HttpResponse::Conflict().finish());
         }
-        Err(_) => return HttpResponse::InternalServerError().finish(),
-        _ => {}
+
+        let token_string = get_stored_confirmation_token(&db_pool, id, &new_subscriber.email)
+            .await
+            .context("Failed to read data from database.")?;
+
+        let confirmation_token =
+            ConfirmationToken::parse(token_string).map_err(SubscribeError::ValidationError)?;
+
+        send_email(
+            email_client,
+            &new_subscriber,
+            base_url,
+            confirmation_token.as_ref(),
+        )
+        .await
+        .context("Failed to send a confirmation email.")?;
+
+        return Ok(HttpResponse::Ok().finish());
     }
 
-    let mut transaction = match db_pool.begin().await {
-        Ok(t) => t,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
-    };
+    let mut transaction = db_pool
+        .begin()
+        .await
+        .context("Failed to acquire a Postgres connection from the pool.")?;
 
-    let subscriber_id = match insert_subscriber(&new_subscriber, &mut transaction).await {
-        Ok(id) => id,
-        Err(_) => return HttpResponse::InternalServerError().finish(),
-    };
+    let subscriber_id = insert_subscriber(&new_subscriber, &mut transaction)
+        .await
+        .context("Failed to insert a new subscriber in the database.")?;
 
     let confirmation_token = ConfirmationToken::new();
-    if store_token(&mut transaction, subscriber_id, confirmation_token.as_ref())
+    store_token(&mut transaction, subscriber_id, confirmation_token.as_ref())
         .await
-        .is_err()
-    {
-        return HttpResponse::InternalServerError().finish();
-    }
+        .context("Failed to store the confirmation token for a new subscriber.")?;
 
-    if send_email(
+    send_email(
         email_client,
         &new_subscriber,
         base_url,
         confirmation_token.as_ref(),
     )
     .await
-    .is_err()
-    {
-        return HttpResponse::InternalServerError().finish();
-    }
+    .context("Failed to send a confirmation email.")?;
 
-    if transaction.commit().await.is_err() {
-        return HttpResponse::InternalServerError().finish();
-    }
-    HttpResponse::Ok().finish()
+    transaction
+        .commit()
+        .await
+        .context("Failed to commit SQL transaction to store a new subscriber.")?;
+    Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(
@@ -140,11 +134,7 @@ async fn try_find_subscriber_by_email(
         email.as_ref()
     )
     .fetch_optional(pool)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        err
-    })?;
+    .await?;
 
     Ok(result.map(|r| (r.id, r.status)))
 }
@@ -162,11 +152,7 @@ async fn get_stored_confirmation_token(
         subscriber_id
     )
     .fetch_one(pool)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        err
-    })?;
+    .await?;
 
     Ok(record.subscription_token)
 }
@@ -191,11 +177,7 @@ pub async fn insert_subscriber(
         Utc::now()
     )
     .execute(&mut **transaction)
-    .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        err
-    })?;
+    .await?;
 
     Ok(id)
 }
@@ -205,7 +187,7 @@ async fn store_token(
     transaction: &mut Transaction<'_, Postgres>,
     id: Uuid,
     token: &str,
-) -> Result<(), sqlx::Error> {
+) -> Result<(), StoreTokenError> {
     sqlx::query!(
         r#"
         INSERT INTO subscription_tokens (subscriber_id, subscription_token) 
@@ -216,36 +198,7 @@ async fn store_token(
     )
     .execute(&mut **transaction)
     .await
-    .map_err(|err| {
-        tracing::error!("Failed to execute query: {:?}", err);
-        err
-    })?;
+    .map_err(StoreTokenError)?;
 
     Ok(())
-}
-
-fn get_email_text(name: &str, link: &str) -> String {
-    format!(
-        "
-        🎉 Welcome, {}!
-
-        Thank you for subscribing!
-
-        To start receiving updates, please confirm your subscription by clicking the link below:
-
-        {}
-
-        If you did not request this subscription, you can safely ignore this email.
-    ",
-        name, link
-    )
-}
-
-fn get_email_html(name: &str, link: &str) -> String {
-    let mut ctx = Context::new();
-    ctx.insert("name", name);
-    ctx.insert("link", link);
-    let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
-    tera.render("confirm_subscription_letter.html", &ctx)
-        .expect("Failed rendering email template")
 }
