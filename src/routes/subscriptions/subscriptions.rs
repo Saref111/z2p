@@ -1,9 +1,6 @@
-use std::{
-    error::Error,
-    fmt::{Debug, Display},
-};
+use std::fmt::Debug;
 
-use actix_web::{HttpResponse, ResponseError, http::StatusCode, web};
+use actix_web::{HttpResponse, web};
 use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction, types::chrono::Utc};
 use uuid::Uuid;
@@ -13,59 +10,16 @@ use crate::{
     email_client::EmailClient,
     startup::ApplicationBaseURL,
 };
-use tera::{self, Context as TeraContext};
+
+use super::{
+        errors::{StoreTokenError, SubscribeError},
+        helpers::{get_email_html, get_email_text},
+};
 
 #[derive(serde::Deserialize)]
 pub struct FormData {
     pub name: String,
     pub email: String,
-}
-
-#[derive(thiserror::Error)]
-pub enum SubscribeError {
-    #[error("{0}")]
-    ValidationError(String),
-    #[error(transparent)]
-    UnexpectedError(#[from] anyhow::Error),
-}
-
-impl Debug for SubscribeError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        error_chain_fmt(self, f)
-    }
-}
-
-impl ResponseError for SubscribeError {
-    fn status_code(&self) -> actix_web::http::StatusCode {
-        match self {
-            SubscribeError::ValidationError(_) => StatusCode::BAD_REQUEST,
-            _ => StatusCode::INTERNAL_SERVER_ERROR,
-        }
-    }
-}
-
-pub struct StoreTokenError(sqlx::Error);
-
-impl Debug for StoreTokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        error_chain_fmt(self, f)
-    }
-}
-
-impl Error for StoreTokenError {
-    fn source(&self) -> Option<&(dyn Error + 'static)> {
-        Some(&self.0)
-    }
-}
-
-impl Display for StoreTokenError {
-    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
-        write!(
-            f,
-            "A database error was encountered while \
-            trying to store a subscription token."
-        )
-    }
 }
 
 #[tracing::instrument(
@@ -245,44 +199,6 @@ async fn store_token(
     .execute(&mut **transaction)
     .await
     .map_err(StoreTokenError)?;
-
-    Ok(())
-}
-
-fn get_email_text(name: &str, link: &str) -> String {
-    format!(
-        "
-        🎉 Welcome, {}!
-
-        Thank you for subscribing!
-
-        To start receiving updates, please confirm your subscription by clicking the link below:
-
-        {}
-
-        If you did not request this subscription, you can safely ignore this email.
-    ",
-        name, link
-    )
-}
-
-fn get_email_html(name: &str, link: &str) -> String {
-    let mut ctx = TeraContext::new();
-    ctx.insert("name", name);
-    ctx.insert("link", link);
-    let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
-    tera.render("confirm_subscription_letter.html", &ctx)
-        .expect("Failed rendering email template")
-}
-
-fn error_chain_fmt(e: &impl Error, f: &mut std::fmt::Formatter) -> std::fmt::Result {
-    writeln!(f, "{}\n", e)?;
-    let mut current = e.source();
-
-    while let Some(cause) = current {
-        writeln!(f, "Caused by:\n\t{}", cause)?;
-        current = cause.source();
-    }
 
     Ok(())
 }
