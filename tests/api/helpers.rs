@@ -2,7 +2,10 @@ use once_cell::sync::Lazy;
 use reqwest::{Response, Url};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
-use wiremock::MockServer;
+use wiremock::{
+    Mock, MockGuard, MockServer, ResponseTemplate,
+    matchers::{method, path},
+};
 use z2p::{
     configuration::{DatabaseSettings, get_configuration},
     startup::{Application, get_connection_pull},
@@ -122,4 +125,21 @@ pub async fn spawn_app() -> TestApp {
         email_server,
         port,
     }
+}
+
+pub async fn create_unconfirmed_subscriber(app: &TestApp) {
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    let _mock_guard = Mock::given(path("v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .named("Create unconfirmed subscriber")
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    app.post_subscription(body.into())
+        .await
+        .error_for_status()
+        .unwrap();
 }
