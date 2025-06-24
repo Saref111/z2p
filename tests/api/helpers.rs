@@ -135,7 +135,7 @@ pub async fn create_unconfirmed_subscriber(app: &TestApp) {
         .respond_with(ResponseTemplate::new(200))
         .named("Create unconfirmed subscriber")
         .expect(1)
-        .mount(&app.email_server)
+        .mount_as_scoped(&app.email_server)
         .await;
 
     app.post_subscription(body.into())

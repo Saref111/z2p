@@ -18,15 +18,11 @@ async fn unconfirmed_subscriber_doesnt_get_a_newsletter() {
 
     let body = serde_json::json!(
     {
-        "from": {
-            "email": "z2pnoreply@test.com"
-        },
-        "to": [{
-            "email": "someemail@test.com"
-        }],
-        "html": "HTML content",
-        "text": "text content",
-        "subject": "subject"
+        "title": "Newsletter title",
+        "content": {
+            "html": "HTML content",
+            "text": "text content"
+        }
     });
 
     let response = reqwest::Client::new()
