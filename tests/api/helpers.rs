@@ -3,7 +3,7 @@ use reqwest::{Response, Url};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::{
-    Mock, MockGuard, MockServer, ResponseTemplate,
+    Mock, MockServer, ResponseTemplate,
     matchers::{method, path},
 };
 use z2p::{
@@ -127,7 +127,7 @@ pub async fn spawn_app() -> TestApp {
     }
 }
 
-pub async fn create_unconfirmed_subscriber(app: &TestApp) {
+pub async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
     let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
 
     let _mock_guard = Mock::given(path("v1/email"))
@@ -142,4 +142,14 @@ pub async fn create_unconfirmed_subscriber(app: &TestApp) {
         .await
         .error_for_status()
         .unwrap();
+
+    let req = &app.email_server.received_requests().await.unwrap()[0];
+
+    app.get_confirmation_links(req)
+}
+
+pub async fn create_confirmed_subscriber(app: &TestApp) {
+    let confirmation_links = create_unconfirmed_subscriber(app).await;
+
+    reqwest::get(confirmation_links.html).await.unwrap().error_for_status().unwrap();
 }
