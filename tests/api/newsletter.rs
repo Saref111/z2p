@@ -1,5 +1,6 @@
 use wiremock::{
-    matchers::{any, path, method}, Mock, ResponseTemplate
+    Mock, ResponseTemplate,
+    matchers::{any, method, path},
 };
 
 use crate::helpers::create_confirmed_subscriber;
@@ -26,12 +27,7 @@ async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
         }
     });
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/newsletters", &app.address))
-        .json(&body)
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    let response = app.post_newsletters(body).await;
 
     assert_eq!(response.status().as_u16(), 200);
 }
@@ -57,12 +53,40 @@ async fn confirmed_subscriber_should_get_a_newsletter() {
         }
     });
 
-    let response = reqwest::Client::new()
-        .post(format!("{}/newsletters", &app.address))
-        .json(&body)
-        .send()
-        .await
-        .expect("Failed to execute request.");
+    let response = app.post_newsletters(body).await;
 
     assert_eq!(response.status().as_u16(), 200);
+}
+
+#[tokio::test]
+async fn newsletters_return_400_for_invalid_input() {
+    let app = spawn_app().await;
+    let test_cases = vec![
+        (
+            serde_json::json!({
+                "content": {
+                    "html": "<p>Html content</p>",
+                    "text": "Text content"
+                }
+            }),
+            "missing title",
+        ),
+        (
+            serde_json::json!({
+                "title": "Title"
+            }),
+            "missing content",
+        ),
+    ];
+
+    for (body, error_message) in test_cases {
+        let response = app.post_newsletters(body).await;
+
+        assert_eq!(
+            response.status().as_u16(),
+            400,
+            "The API did not fail with 400 Bad Request when the payload was {}.",
+            error_message
+        );
+    }
 }

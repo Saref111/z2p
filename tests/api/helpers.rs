@@ -39,6 +39,15 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_newsletters(&self, body: serde_json::Value) -> Response {
+        reqwest::Client::new()
+            .post(format!("{}/newsletters", &self.address))
+            .json(&body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     pub async fn post_subscription(&self, body: String) -> Response {
         reqwest::Client::new()
             .post(format!("{}/subscriptions", self.address))
@@ -151,5 +160,9 @@ pub async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
 pub async fn create_confirmed_subscriber(app: &TestApp) {
     let confirmation_links = create_unconfirmed_subscriber(app).await;
 
-    reqwest::get(confirmation_links.html).await.unwrap().error_for_status().unwrap();
+    reqwest::get(confirmation_links.html)
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
 }
