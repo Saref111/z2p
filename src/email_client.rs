@@ -51,8 +51,8 @@ impl EmailClient {
 
     pub async fn send_email(
         &self,
-        recipient: SubscriberEmail,
-        subject: String,
+        recipient: &SubscriberEmail,
+        subject: &str,
         html_content: &str,
         text_content: &str,
     ) -> Result<(), reqwest::Error> {
@@ -163,7 +163,7 @@ mod test {
         let content: String = get_content();
 
         let _ = email_client
-            .send_email(subscriber_email, subject, &content, &content)
+            .send_email(&subscriber_email, &subject, &content, &content)
             .await;
     }
 
@@ -183,7 +183,7 @@ mod test {
         let content: String = get_content();
 
         let outcome = email_client
-            .send_email(subscriber_email, subject, &content, &content)
+            .send_email(&subscriber_email, &subject, &content, &content)
             .await;
 
         assert_ok!(outcome)
@@ -205,7 +205,7 @@ mod test {
         let content: String = get_content();
 
         let outcome = email_client
-            .send_email(subscriber_email, subject, &content, &content)
+            .send_email(&subscriber_email, &subject, &content, &content)
             .await;
 
         assert_err!(outcome);
@@ -229,7 +229,7 @@ mod test {
         let content: String = get_content();
 
         let outcome = email_client
-            .send_email(subscriber_email, subject, &content, &content)
+            .send_email(&subscriber_email, &subject, &content, &content)
             .await;
 
         assert_err!(outcome);

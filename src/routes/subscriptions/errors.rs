@@ -1,9 +1,9 @@
+use super::super::helpers::error_chain_fmt;
+use actix_web::{ResponseError, http::StatusCode};
 use std::{
     error::Error,
     fmt::{Debug, Display},
 };
-use super::super::helpers::error_chain_fmt;
-use actix_web::{ResponseError, http::StatusCode};
 
 #[derive(thiserror::Error)]
 pub enum SubscribeError {

@@ -1,6 +1,9 @@
-use actix_web::{http::StatusCode, HttpResponse, ResponseError};
-use sqlx::PgPool;
+use crate::{domain::SubscriberEmail, email_client::EmailClient};
+
 use super::helpers::error_chain_fmt;
+use actix_web::{HttpResponse, ResponseError, http::StatusCode};
+use anyhow::Context;
+use sqlx::PgPool;
 
 #[derive(serde::Deserialize)]
 pub struct BodySchema {
@@ -15,12 +18,12 @@ pub struct Content {
 }
 
 pub struct ConfirmedSubscriber {
-    email: String,
+    email: SubscriberEmail,
 }
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
-#[error(transparent)]
+    #[error(transparent)]
     UnexpectedError(#[from] anyhow::Error),
 }
 
@@ -38,19 +41,68 @@ impl ResponseError for PublishError {
     }
 }
 
-pub async fn publish_newsletter(_body: actix_web::web::Json<BodySchema>, db_pool: actix_web::web::Data<PgPool>) -> Result<HttpResponse, PublishError> {
-    let _confirmed_subscribers = get_confirmed_subscribers(&db_pool).await?;
+#[tracing::instrument(
+    name = "Sending newsletters to confirmed subscribers",
+    skip(db_pool, email_client, body)
+)]
+pub async fn publish_newsletter(
+    body: actix_web::web::Json<BodySchema>,
+    db_pool: actix_web::web::Data<PgPool>,
+    email_client: actix_web::web::Data<EmailClient>,
+) -> Result<HttpResponse, PublishError> {
+    let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await?;
+
+    for subscriber in confirmed_subscribers {
+        match subscriber {
+            Ok(subscriber) => {
+                email_client
+                    .send_email(
+                        &subscriber.email,
+                        &body.title,
+                        &body.content.html,
+                        &body.content.text,
+                    )
+                    .await
+                    .with_context(|| {
+                        format!("Failed to send newsletter issue to {}", subscriber.email)
+                    })?;
+            }
+            Err(err) => {
+                tracing::warn!(
+                    err.cause_chain = ?err,
+                    "Skipping the confirmed subscriber. \
+                    The stored contact details are invalid."
+                )
+            }
+        }
+    }
     Ok(HttpResponse::Ok().finish())
 }
 
 #[tracing::instrument(name = "Get confirmed subscribers", skip(pool))]
-async fn get_confirmed_subscribers(pool: &PgPool) -> Result<Vec<ConfirmedSubscriber>, anyhow::Error> {
+async fn get_confirmed_subscribers(
+    pool: &PgPool,
+) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
+    struct Row {
+        email: String,
+    }
+
     let rows = sqlx::query_as!(
-        ConfirmedSubscriber,
+        Row,
         r#"
         SELECT email FROM subscriptions WHERE status = 'confirmed';
         "#
-    ).fetch_all(pool).await?;
+    )
+    .fetch_all(pool)
+    .await?;
 
-    Ok(rows)
+    let confirmed_subscribers = rows
+        .into_iter()
+        .map(|r| match SubscriberEmail::parse(r.email) {
+            Ok(email) => Ok(ConfirmedSubscriber { email }),
+            Err(err) => Err(anyhow::anyhow!(err)),
+        })
+        .collect();
+
+    Ok(confirmed_subscribers)
 }
