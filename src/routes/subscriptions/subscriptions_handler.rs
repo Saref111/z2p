@@ -114,8 +114,8 @@ pub async fn send_email(
 
     email_client
         .send_email(
-            subscriber.email.to_owned(),
-            "HELLO!".into(),
+            vec![&subscriber.email],
+            "HELLO!",
             &get_email_html(subscriber.name.as_ref(), &confirmation_link),
             &get_email_text(subscriber.name.as_ref(), &confirmation_link),
         )

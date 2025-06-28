@@ -51,8 +51,8 @@ impl EmailClient {
 
     pub async fn send_email(
         &self,
-        recipient: SubscriberEmail,
-        subject: String,
+        recipients: Vec<&SubscriberEmail>,
+        subject: &str,
         html_content: &str,
         text_content: &str,
     ) -> Result<(), reqwest::Error> {
@@ -63,10 +63,13 @@ impl EmailClient {
 
         let body = SendEmailRequest {
             from: EmailUnit::new(self.sender.as_ref()),
-            to: vec![EmailUnit::new(recipient.as_ref())],
+            to: recipients
+                .into_iter()
+                .map(|r| EmailUnit::new(r.as_ref()))
+                .collect(),
             html: html_content,
             text: text_content,
-            subject: &subject,
+            subject,
         };
 
         self.http_client
@@ -163,7 +166,7 @@ mod test {
         let content: String = get_content();
 
         let _ = email_client
-            .send_email(subscriber_email, subject, &content, &content)
+            .send_email(vec![&subscriber_email], &subject, &content, &content)
             .await;
     }
 
@@ -183,7 +186,7 @@ mod test {
         let content: String = get_content();
 
         let outcome = email_client
-            .send_email(subscriber_email, subject, &content, &content)
+            .send_email(vec![&subscriber_email], &subject, &content, &content)
             .await;
 
         assert_ok!(outcome)
@@ -205,11 +208,10 @@ mod test {
         let content: String = get_content();
 
         let outcome = email_client
-            .send_email(subscriber_email, subject, &content, &content)
+            .send_email(vec![&subscriber_email], &subject, &content, &content)
             .await;
 
         assert_err!(outcome);
-        ()
     }
 
     #[tokio::test]
@@ -229,10 +231,9 @@ mod test {
         let content: String = get_content();
 
         let outcome = email_client
-            .send_email(subscriber_email, subject, &content, &content)
+            .send_email(vec![&subscriber_email], &subject, &content, &content)
             .await;
 
         assert_err!(outcome);
-        ()
     }
 }

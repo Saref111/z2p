@@ -2,7 +2,10 @@ use once_cell::sync::Lazy;
 use reqwest::{Response, Url};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
-use wiremock::MockServer;
+use wiremock::{
+    Mock, MockServer, ResponseTemplate,
+    matchers::{method, path},
+};
 use z2p::{
     configuration::{DatabaseSettings, get_configuration},
     startup::{Application, get_connection_pull},
@@ -36,6 +39,15 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_newsletters(&self, body: serde_json::Value) -> Response {
+        reqwest::Client::new()
+            .post(format!("{}/newsletters", &self.address))
+            .json(&body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     pub async fn post_subscription(&self, body: String) -> Response {
         reqwest::Client::new()
             .post(format!("{}/subscriptions", self.address))
@@ -114,12 +126,43 @@ pub async fn spawn_app() -> TestApp {
         .expect("Failed to build the application");
 
     let port = app.get_port();
-    let _ = tokio::spawn(app.run_until_stopped());
+    tokio::spawn(app.run_until_stopped());
 
     TestApp {
-        address: format!("http://127.0.0.1:{}", port),
+        address: format!("http://127.0.0.1:{port}"),
         db_pool: get_connection_pull(&config.database),
         email_server,
         port,
     }
+}
+
+pub async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
+    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+
+    let _mock_guard = Mock::given(path("v1/email"))
+        .and(method("POST"))
+        .respond_with(ResponseTemplate::new(200))
+        .named("Create unconfirmed subscriber")
+        .expect(1)
+        .mount_as_scoped(&app.email_server)
+        .await;
+
+    app.post_subscription(body.into())
+        .await
+        .error_for_status()
+        .unwrap();
+
+    let req = &app.email_server.received_requests().await.unwrap()[0];
+
+    app.get_confirmation_links(req)
+}
+
+pub async fn create_confirmed_subscriber(app: &TestApp) {
+    let confirmation_links = create_unconfirmed_subscriber(app).await;
+
+    reqwest::get(confirmation_links.html)
+        .await
+        .unwrap()
+        .error_for_status()
+        .unwrap();
 }

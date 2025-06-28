@@ -6,7 +6,7 @@ pub struct SubscriberEmail(String);
 impl SubscriberEmail {
     pub fn parse(s: String) -> Result<Self, String> {
         if !s.validate_email() {
-            return Err(format!("{} is not a valid subscriber email.", s));
+            return Err(format!("{s} is not a valid subscriber email."));
         };
         Ok(Self(s))
     }
@@ -22,6 +22,12 @@ impl TryFrom<String> for SubscriberEmail {
     type Error = String;
     fn try_from(value: String) -> Result<Self, Self::Error> {
         SubscriberEmail::parse(value)
+    }
+}
+
+impl std::fmt::Display for SubscriberEmail {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        self.0.fmt(f)
     }
 }
 

@@ -23,7 +23,7 @@ impl ConfirmationToken {
         let contains_forbidden_chars = s.chars().any(|c| forbidden_characters.contains(&c));
 
         if trim_or_whitespace || is_wrong_length || contains_forbidden_chars {
-            Err(format!("{} is invalid confirmation token.", s))
+            Err(format!("{s} is invalid confirmation token."))
         } else {
             Ok(Self(s))
         }
