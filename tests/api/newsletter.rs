@@ -85,8 +85,7 @@ async fn newsletters_return_400_for_invalid_input() {
         assert_eq!(
             response.status().as_u16(),
             400,
-            "The API did not fail with 400 Bad Request when the payload was {}.",
-            error_message
+            "The API did not fail with 400 Bad Request when the payload was {error_message}."
         );
     }
 }

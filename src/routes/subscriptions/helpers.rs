@@ -3,17 +3,16 @@ use tera::{self, Context as TeraContext};
 pub fn get_email_text(name: &str, link: &str) -> String {
     format!(
         "
-        🎉 Welcome, {}!
+        🎉 Welcome, {name}!
 
         Thank you for subscribing!
 
         To start receiving updates, please confirm your subscription by clicking the link below:
 
-        {}
+        {link}
 
         If you did not request this subscription, you can safely ignore this email.
-    ",
-        name, link
+    "
     )
 }
 

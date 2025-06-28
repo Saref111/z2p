@@ -126,10 +126,10 @@ pub async fn spawn_app() -> TestApp {
         .expect("Failed to build the application");
 
     let port = app.get_port();
-    let _ = tokio::spawn(app.run_until_stopped());
+    tokio::spawn(app.run_until_stopped());
 
     TestApp {
-        address: format!("http://127.0.0.1:{}", port),
+        address: format!("http://127.0.0.1:{port}"),
         db_pool: get_connection_pull(&config.database),
         email_server,
         port,

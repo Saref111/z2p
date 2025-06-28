@@ -66,7 +66,7 @@ impl EmailClient {
             to: vec![EmailUnit::new(recipient.as_ref())],
             html: html_content,
             text: text_content,
-            subject: &subject,
+            subject,
         };
 
         self.http_client
@@ -209,7 +209,7 @@ mod test {
             .await;
 
         assert_err!(outcome);
-        ()
+        
     }
 
     #[tokio::test]
@@ -233,6 +233,6 @@ mod test {
             .await;
 
         assert_err!(outcome);
-        ()
+        
     }
 }
