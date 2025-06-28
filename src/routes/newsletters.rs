@@ -52,31 +52,49 @@ pub async fn publish_newsletter(
 ) -> Result<HttpResponse, PublishError> {
     let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await?;
 
-    for subscriber in confirmed_subscribers {
-        match subscriber {
-            Ok(subscriber) => {
-                email_client
-                    .send_email(
-                        &subscriber.email,
-                        &body.title,
-                        &body.content.html,
-                        &body.content.text,
-                    )
-                    .await
-                    .with_context(|| {
-                        format!("Failed to send newsletter issue to {}", subscriber.email)
-                    })?;
-            }
+    send_newsletters(confirmed_subscribers, &email_client, &body).await?;
+
+    Ok(HttpResponse::Ok().finish())
+}
+
+async fn send_newsletters(
+    subscribers: Vec<Result<ConfirmedSubscriber, anyhow::Error>>,
+    email_client: &EmailClient,
+    body: &BodySchema,
+) -> Result<(), anyhow::Error> {
+    let chunks = subscribers
+        .iter()
+        .filter_map(|s| match s {
+            Ok(s) => Some(&s.email),
             Err(err) => {
                 tracing::warn!(
                     err.cause_chain = ?err,
                     "Skipping the confirmed subscriber. \
                     The stored contact details are invalid."
-                )
+                );
+                None
             }
-        }
+        })
+        .collect::<Vec<&SubscriberEmail>>();
+
+    for subscribers_chunk in chunks.chunks(50) {
+        email_client
+            .send_email(
+                subscribers_chunk.to_vec(),
+                &body.title,
+                &body.content.html,
+                &body.content.text,
+            )
+            .await
+            .with_context(|| {
+                format!(
+                    "Failed to send newsletter issue to {:#?}",
+                    &subscribers_chunk
+                )
+            })?;
     }
-    Ok(HttpResponse::Ok().finish())
+
+    Ok(())
 }
 
 #[tracing::instrument(name = "Get confirmed subscribers", skip(pool))]
