@@ -89,3 +89,27 @@ async fn newsletters_return_400_for_invalid_input() {
         );
     }
 }
+
+#[tokio::test]
+async fn request_missing_auth_rejected() {
+    let app = spawn_app().await;
+
+    let resp = reqwest::Client::new()
+        .post(&format!("{}/newsletters", app.address))
+        .json(&serde_json::json!({
+            "title": "Some title",
+            "content": {
+                "html": "<p>HTML letter</p>",
+                "text": "Text letter"
+            }
+        }))
+        .send()
+        .await
+        .expect("Failed to execute request.");
+
+    assert_eq!(401, resp.status().as_u16());
+    assert_eq!(
+        r#"Basic realm="publish""#,
+        resp.headers()["WWW-Authenticate"]
+    );
+}

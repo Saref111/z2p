@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-TEST_NAME="subscribe_fails_if_there_is_fatal_db_error"
+TEST_NAME="request_missing_auth_rejected"
 
 export RUST_LOG="sqlx=error,info"
 export TEST_LOG=enabled
