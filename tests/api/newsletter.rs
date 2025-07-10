@@ -107,7 +107,7 @@ async fn request_missing_auth_rejected() {
         .await
         .expect("Failed to execute request.");
 
-    assert_eq!(401, resp.status().as_u16());
+    assert_eq!(resp.status().as_u16(), 401);
     assert_eq!(
         r#"Basic realm="publish""#,
         resp.headers()["WWW-Authenticate"]

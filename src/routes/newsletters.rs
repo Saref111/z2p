@@ -67,7 +67,7 @@ pub async fn publish_newsletter(
     req: HttpRequest,
 ) -> Result<HttpResponse, PublishError> {
     let _creds = basic_auth(req.headers()).map_err(PublishError::AuthError)?;
-
+    
     let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await?;
 
     send_newsletters(confirmed_subscribers, &email_client, &body).await?;
@@ -151,7 +151,7 @@ fn basic_auth(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
         .context("The 'Authorization' header was not a valid UTF8 string.")?;
 
     let base64_encoded_segment = header_value
-        .strip_prefix("Basic")
+        .strip_prefix("Basic ")
         .context("The authorization scheme is not 'Basic'")?;
 
     let decoded_bytes = base64::engine::general_purpose::STANDARD
@@ -166,12 +166,13 @@ fn basic_auth(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
         .next()
         .ok_or_else(|| anyhow::anyhow!("A username must be provided in 'Basic' auth."))?
         .to_string();
+
     let password = creds
         .next()
         .ok_or_else(|| anyhow::anyhow!("A password must be provided in 'Basic' auth."))?
         .to_string();
 
-    Ok(Credentials {
+        Ok(Credentials {
         username,
         password: SecretString::from(password),
     })
