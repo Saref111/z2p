@@ -40,9 +40,11 @@ pub struct ConfirmationLinks {
 
 impl TestApp {
     pub async fn post_newsletters(&self, body: serde_json::Value) -> Response {
+        let (username, password) = self.select_test_user().await;
+
         reqwest::Client::new()
             .post(format!("{}/newsletters", &self.address))
-            .basic_auth(Uuid::new_v4().to_string(), Some(Uuid::new_v4().to_string()))
+            .basic_auth(username, Some(password))
             .json(&body)
             .send()
             .await
@@ -83,7 +85,34 @@ impl TestApp {
 
         ConfirmationLinks { text, html }
     }
+
+    pub async fn select_test_user(&self) -> (String, String) {
+        let row = sqlx::query!(r#"
+            SELECT username, password
+            FROM users
+            LIMIT 1
+        "#)
+        .fetch_one(&self.db_pool)
+        .await
+        .expect("Failed to fetch test user.");
+
+        (row.username, row.password)
+    }
 }
+
+async fn add_test_user(pool: &PgPool) {
+    sqlx::query!(r#"
+        INSERT INTO users (user_id, username, password)
+        VALUES ($1, $2, $3)
+    "#,
+        Uuid::new_v4(),
+        Uuid::new_v4().to_string(),
+        Uuid::new_v4().to_string()
+    ).execute(pool)
+        .await
+        .expect("Failed to create test user.");
+}
+
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     let mut connection = PgConnection::connect_with(&config.without_db())
@@ -129,12 +158,15 @@ pub async fn spawn_app() -> TestApp {
     let port = app.get_port();
     tokio::spawn(app.run_until_stopped());
 
-    TestApp {
+    let app = TestApp {
         address: format!("http://127.0.0.1:{port}"),
         db_pool: get_connection_pull(&config.database),
         email_server,
         port,
-    }
+    };
+    add_test_user(&app.db_pool).await;
+
+    app
 }
 
 pub async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
