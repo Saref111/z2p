@@ -6,8 +6,9 @@ use actix_web::{
 };
 use anyhow::Context;
 use base64::Engine;
-use secrecy::SecretString;
+use secrecy::{ExposeSecret, SecretString};
 use sqlx::PgPool;
+use uuid::Uuid;
 
 #[derive(serde::Deserialize)]
 pub struct BodySchema {
@@ -172,8 +173,27 @@ fn basic_auth(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
         .ok_or_else(|| anyhow::anyhow!("A password must be provided in 'Basic' auth."))?
         .to_string();
 
-        Ok(Credentials {
+    Ok(Credentials {
         username,
         password: SecretString::from(password),
     })
+}
+
+async fn validate_credentials(credentials: Credentials, pool: &PgPool) -> Result<Uuid, PublishError> {
+    let user_id = sqlx::query!(r#"
+        SELECT user_id 
+        FROM users 
+        WHERE username = $1 
+        AND password = $2
+    "#, 
+        credentials.username, 
+        credentials.password.expose_secret())
+    .fetch_optional(pool)
+    .await
+    .context("Failed to perform query to validate auth credentials.")
+    .map_err(PublishError::UnexpectedError)?;
+
+    user_id.map(|row| row.user_id)
+        .ok_or_else(|| anyhow::anyhow!("Invalid username or password."))
+        .map_err(PublishError::AuthError)
 }
