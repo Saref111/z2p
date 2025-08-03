@@ -87,11 +87,13 @@ impl TestApp {
     }
 
     pub async fn select_test_user(&self) -> (String, String) {
-        let row = sqlx::query!(r#"
+        let row = sqlx::query!(
+            r#"
             SELECT username, password
             FROM users
             LIMIT 1
-        "#)
+        "#
+        )
         .fetch_one(&self.db_pool)
         .await
         .expect("Failed to fetch test user.");
@@ -101,18 +103,19 @@ impl TestApp {
 }
 
 async fn add_test_user(pool: &PgPool) {
-    sqlx::query!(r#"
+    sqlx::query!(
+        r#"
         INSERT INTO users (user_id, username, password)
         VALUES ($1, $2, $3)
     "#,
         Uuid::new_v4(),
         Uuid::new_v4().to_string(),
         Uuid::new_v4().to_string()
-    ).execute(pool)
-        .await
-        .expect("Failed to create test user.");
+    )
+    .execute(pool)
+    .await
+    .expect("Failed to create test user.");
 }
-
 
 pub async fn configure_database(config: &DatabaseSettings) -> PgPool {
     let mut connection = PgConnection::connect_with(&config.without_db())

@@ -3,9 +3,7 @@ use wiremock::{
     matchers::{any, method, path},
 };
 
-use crate::helpers::create_confirmed_subscriber;
-
-use super::helpers::{create_unconfirmed_subscriber, spawn_app};
+use super::helpers::{create_confirmed_subscriber, create_unconfirmed_subscriber, spawn_app};
 
 #[tokio::test]
 async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
