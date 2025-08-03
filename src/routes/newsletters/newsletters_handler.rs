@@ -1,5 +1,5 @@
 use crate::{domain::SubscriberEmail, email_client::EmailClient};
-use super::{errors::PublishError, helpers::{Credentials, basic_auth}};
+use super::{errors::PublishError, helpers::basic_auth, types::{BodySchema, Credentials, ConfirmedSubscriber}};
 use actix_web::{
     HttpRequest, HttpResponse
 };
@@ -8,23 +8,6 @@ use secrecy::ExposeSecret;
 use sha3::Digest;
 use sqlx::PgPool;
 use uuid::Uuid;
-
-#[derive(serde::Deserialize)]
-pub struct BodySchema {
-    title: String,
-    content: Content,
-}
-
-#[derive(serde::Deserialize)]
-pub struct Content {
-    text: String,
-    html: String,
-}
-
-pub struct ConfirmedSubscriber {
-    email: SubscriberEmail,
-}
-
 
 #[tracing::instrument(
     name = "Publish newsletter",

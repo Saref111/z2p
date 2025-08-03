@@ -2,11 +2,7 @@ use actix_web::http::header::HeaderMap;
 use anyhow::Context;
 use base64::Engine;
 use secrecy::SecretString;
-
-pub struct Credentials {
-    pub username: String,
-    pub password: SecretString,
-}
+use super::types::Credentials;
 
 pub fn basic_auth(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
     let header_value = headers
