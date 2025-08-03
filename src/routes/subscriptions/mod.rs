@@ -4,3 +4,4 @@ mod subscriptions_handler;
 mod types;
 
 pub use subscriptions_handler::*;
+pub use types::FormData;

@@ -1,8 +1,10 @@
-use crate::{domain::SubscriberEmail, email_client::EmailClient};
-use super::{errors::PublishError, helpers::basic_auth, types::{BodySchema, Credentials, ConfirmedSubscriber}};
-use actix_web::{
-    HttpRequest, HttpResponse
+use super::{
+    errors::PublishError,
+    helpers::basic_auth,
+    types::{BodySchema, ConfirmedSubscriber, Credentials},
 };
+use crate::{domain::SubscriberEmail, email_client::EmailClient};
+use actix_web::{HttpRequest, HttpResponse};
 use anyhow::Context;
 use secrecy::ExposeSecret;
 use sha3::Digest;
@@ -108,9 +110,7 @@ async fn validate_credentials(
     credentials: Credentials,
     pool: &PgPool,
 ) -> Result<Uuid, PublishError> {
-    let password_hash = sha3::Sha3_256::digest(
-        credentials.password.expose_secret().as_bytes()
-    );
+    let password_hash = sha3::Sha3_256::digest(credentials.password.expose_secret().as_bytes());
     let password_hash = format!("{:x}", password_hash);
 
     let user_id = sqlx::query!(

@@ -1,8 +1,8 @@
+use super::types::Credentials;
 use actix_web::http::header::HeaderMap;
 use anyhow::Context;
 use base64::Engine;
 use secrecy::SecretString;
-use super::types::Credentials;
 
 pub fn basic_auth(headers: &HeaderMap) -> Result<Credentials, anyhow::Error> {
     let header_value = headers
