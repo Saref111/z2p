@@ -1,6 +1,9 @@
+use argon2::{
+    Argon2, PasswordHasher,
+    password_hash::{SaltString, rand_core::OsRng},
+};
 use once_cell::sync::Lazy;
 use reqwest::{Response, Url};
-use sha3::Digest;
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
 use wiremock::{
@@ -42,7 +45,9 @@ pub struct ConfirmationLinks {
 
 impl TestApp {
     pub async fn post_newsletters(&self, body: serde_json::Value) -> Response {
-        let TestUser {username, password, ..} = &self.test_user;
+        let TestUser {
+            username, password, ..
+        } = &self.test_user;
 
         reqwest::Client::new()
             .post(format!("{}/newsletters", &self.address))
@@ -192,8 +197,11 @@ impl TestUser {
     }
 
     pub async fn store(&self, db_pool: &PgPool) {
-        let password_hash = sha3::Sha3_256::digest(self.password.as_bytes());
-        let password_hash = format!("{:x}", password_hash);
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = Argon2::default()
+            .hash_password(self.password.as_bytes(), &salt)
+            .unwrap()
+            .to_string();
 
         sqlx::query!(
             r#"
