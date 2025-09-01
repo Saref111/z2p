@@ -17,8 +17,3 @@ pub struct Content {
 pub struct ConfirmedSubscriber {
     pub email: SubscriberEmail,
 }
-
-pub struct Credentials {
-    pub username: String,
-    pub password: SecretString,
-}
