@@ -1,5 +1,3 @@
-use secrecy::SecretString;
-
 use crate::domain::SubscriberEmail;
 
 #[derive(serde::Deserialize)]
