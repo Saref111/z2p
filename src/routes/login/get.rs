@@ -1,4 +1,4 @@
-use actix_web::{HttpRequest, HttpResponse, http::header::ContentType};
+use actix_web::{HttpRequest, HttpResponse, cookie::Cookie, http::header::ContentType};
 use tera::{self, Context as TeraContext};
 
 pub async fn login_form(req: HttpRequest) -> HttpResponse {
@@ -14,7 +14,11 @@ pub async fn login_form(req: HttpRequest) -> HttpResponse {
         .render("login.html", &ctx)
         .expect("Failed rendering login page.");
 
-    HttpResponse::Ok()
+    let mut response = HttpResponse::Ok()
         .content_type(ContentType::html())
-        .body(page_string)
+        .body(page_string);
+    response
+        .add_removal_cookie(&Cookie::new("_flash", ""))
+        .unwrap();
+    response
 }
