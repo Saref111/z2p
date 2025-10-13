@@ -1,4 +1,4 @@
-use actix_web::{HttpResponse, error::InternalError, http::header::LOCATION, web};
+use actix_web::{HttpResponse, cookie::Cookie, error::InternalError, http::header::LOCATION, web};
 use hmac::{Hmac, Mac};
 use secrecy::{ExposeSecret, SecretString};
 use serde::Deserialize;
@@ -19,7 +19,7 @@ pub struct FormData {
 
 #[derive(thiserror::Error)]
 pub enum LoginError {
-    #[error("Authentification failed.")]
+    #[error("Authentication failed.")]
     AuthError(#[source] anyhow::Error),
     #[error("Something went wrong.")]
     UnexpectedError(#[from] anyhow::Error),
@@ -68,10 +68,8 @@ pub async fn login(
                 mac.finalize().into_bytes()
             };
             let response = HttpResponse::SeeOther()
-                .insert_header((
-                    LOCATION,
-                    format!("/login?{}&tag={:x}", query_string, hmac_tag),
-                ))
+                .insert_header((LOCATION, "/login"))
+                .cookie(Cookie::new("_flash", e.to_string()))
                 .finish();
 
             Err(InternalError::from_response(e, response))

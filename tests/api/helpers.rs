@@ -44,6 +44,21 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_login<Body>(&self, body: Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        reqwest::Client::builder()
+            .redirect(reqwest::redirect::Policy::none())
+            .build()
+            .unwrap()
+            .post(&format!("{}/login", self.address))
+            .form(&body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     pub async fn post_newsletters(&self, body: serde_json::Value) -> Response {
         let TestUser {
             username, password, ..
@@ -179,6 +194,11 @@ pub async fn create_confirmed_subscriber(app: &TestApp) {
         .unwrap()
         .error_for_status()
         .unwrap();
+}
+
+pub fn assert_is_redirect_to(resp: &reqwest::Response, location: &str) {
+    assert_eq!(resp.status().as_u16(), 303);
+    assert_eq!(resp.headers().get("Location").unwrap(), location);
 }
 
 pub struct TestUser {
