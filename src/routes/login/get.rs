@@ -4,9 +4,7 @@ use tera::{self, Context as TeraContext};
 pub async fn login_form(req: HttpRequest) -> HttpResponse {
     let error_string = match req.cookie("_flash") {
         None => "".into(),
-        Some(s) => {
-            format!("{}", s.value())
-        }
+        Some(s) => s.value().to_string(),
     };
 
     let mut ctx = TeraContext::new();

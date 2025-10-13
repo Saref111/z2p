@@ -39,13 +39,7 @@ impl Application {
 
         let listener = TcpListener::bind(address).unwrap();
         let port = listener.local_addr().unwrap().port();
-        let server = run(
-            listener,
-            connection_pool,
-            email_client,
-            config.app.base_url,
-            config.app.hmac_secret,
-        )?;
+        let server = run(listener, connection_pool, email_client, config.app.base_url)?;
 
         Ok(Self { port, server })
     }
@@ -64,7 +58,6 @@ pub fn run(
     db_pool: PgPool,
     email_client: EmailClient,
     base_url: String,
-    secret: SecretString,
 ) -> Result<Server, std::io::Error> {
     let db_pool = web::Data::new(db_pool);
     let email_client = web::Data::new(email_client);
