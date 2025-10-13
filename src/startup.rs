@@ -4,7 +4,6 @@ use crate::routes::{
     confirm, health_check, home, login, login_form, publish_newsletter, subscribe,
 };
 use actix_web::dev::Server;
-use actix_web::web::Data;
 use actix_web::{App, HttpServer, web};
 use secrecy::SecretString;
 use sqlx::PgPool;
@@ -84,7 +83,6 @@ pub fn run(
             .app_data(db_pool.clone())
             .app_data(email_client.clone())
             .app_data(base_url.clone())
-            .app_data(Data::new(HmacSecret(secret.clone())))
     })
     .listen(listener)?
     .run();
