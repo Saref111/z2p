@@ -1,11 +1,13 @@
-use actix_web::{HttpRequest, HttpResponse, cookie::Cookie, http::header::ContentType};
+use actix_web::{HttpResponse, cookie::Cookie, http::header::ContentType};
+use actix_web_flash_messages::{IncomingFlashMessages, Level};
+use std::fmt::Write;
 use tera::{self, Context as TeraContext};
 
-pub async fn login_form(req: HttpRequest) -> HttpResponse {
-    let error_string = match req.cookie("_flash") {
-        None => "".into(),
-        Some(s) => s.value().to_string(),
-    };
+pub async fn login_form(flash_messages: IncomingFlashMessages) -> HttpResponse {
+    let mut error_string = String::new();
+    for m in flash_messages.iter().filter(|m| m.level() == Level::Error) {
+        writeln!(error_string, "{}", m.content()).unwrap();
+    }
 
     let mut ctx = TeraContext::new();
     ctx.insert("error", &error_string);
