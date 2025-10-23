@@ -14,7 +14,7 @@ pub fn error_chain_fmt(e: &impl Error, f: &mut std::fmt::Formatter) -> std::fmt:
 
 pub fn prepare_html_template(entries: &[(&str, &str)], template_name: &str) -> String {
     let mut ctx = tera::Context::new();
-    for (key, value) in entries.to_vec() {
+    for (key, value) in entries.iter().copied() {
         ctx.insert(key, value);
     }
     let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
