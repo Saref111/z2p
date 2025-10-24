@@ -1,7 +1,11 @@
 use crate::session_state::TypedSession;
 
 use super::super::helpers::prepare_html_template;
-use actix_web::{HttpResponse, http::header::ContentType, web};
+use actix_web::{
+    HttpResponse,
+    http::header::{ContentType, LOCATION},
+    web,
+};
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
@@ -20,7 +24,9 @@ pub async fn admin_dashboard(
     let username = if let Some(user_id) = session.get_user_id().map_err(e500)? {
         get_username(user_id, &pool).await.map_err(e500)?
     } else {
-        todo!()
+        return Ok(HttpResponse::SeeOther()
+            .insert_header((LOCATION, "/login"))
+            .finish());
     };
 
     let page_string = prepare_html_template(&[("username", &username)], "dashboard.html");
