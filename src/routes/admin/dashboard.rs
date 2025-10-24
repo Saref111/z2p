@@ -1,4 +1,4 @@
-use crate::session_state::TypedSession;
+use crate::{routes::helpers::e500, session_state::TypedSession};
 
 use super::super::helpers::prepare_html_template;
 use actix_web::{
@@ -9,13 +9,6 @@ use actix_web::{
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
-
-fn e500<T>(e: T) -> actix_web::Error
-where
-    T: std::fmt::Debug + std::fmt::Display + 'static,
-{
-    actix_web::error::ErrorInternalServerError(e)
-}
 
 pub async fn admin_dashboard(
     session: TypedSession,

@@ -1,5 +1,7 @@
 use std::error::Error;
 
+use actix_web::{HttpResponse, http::header::LOCATION};
+
 pub fn error_chain_fmt(e: &impl Error, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     writeln!(f, "{e}\n")?;
     let mut current = e.source();
@@ -20,4 +22,17 @@ pub fn prepare_html_template(entries: &[(&str, &str)], template_name: &str) -> S
     let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
     tera.render(template_name, &ctx)
         .expect("Failed rendering email template")
+}
+
+pub fn e500<T>(e: T) -> actix_web::Error
+where
+    T: std::fmt::Debug + std::fmt::Display + 'static,
+{
+    actix_web::error::ErrorInternalServerError(e)
+}
+
+pub fn see_other(location: &str) -> HttpResponse {
+    HttpResponse::SeeOther()
+        .insert_header((LOCATION, location))
+        .finish()
 }
