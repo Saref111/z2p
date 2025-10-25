@@ -1,9 +1,8 @@
 use actix_web::{HttpResponse, http::header::ContentType};
-use actix_web_flash_messages::{IncomingFlashMessages, Level};
-use std::fmt::Write;
+use actix_web_flash_messages::IncomingFlashMessages;
 
 use crate::{
-    routes::helpers::{e500, prepare_html_template, see_other},
+    routes::helpers::{e500, get_error_message, prepare_html_template, see_other},
     session_state::TypedSession,
 };
 
@@ -15,10 +14,7 @@ pub async fn change_password_form(
         return Ok(see_other("/login"));
     }
 
-    let mut error_string = String::new();
-    for m in flash_messages.iter().filter(|m| m.level() == Level::Error) {
-        writeln!(error_string, "{}", m.content()).unwrap();
-    }
+    let error_string = get_error_message(flash_messages);
 
     let page = prepare_html_template(&[("error", &error_string)], "change_password_form.html");
     Ok(HttpResponse::Ok()

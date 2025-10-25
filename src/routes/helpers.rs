@@ -1,6 +1,8 @@
 use std::error::Error;
 
 use actix_web::{HttpResponse, http::header::LOCATION};
+use actix_web_flash_messages::{IncomingFlashMessages, Level};
+use std::fmt::Write;
 
 pub fn error_chain_fmt(e: &impl Error, f: &mut std::fmt::Formatter) -> std::fmt::Result {
     writeln!(f, "{e}\n")?;
@@ -35,4 +37,12 @@ pub fn see_other(location: &str) -> HttpResponse {
     HttpResponse::SeeOther()
         .insert_header((LOCATION, location))
         .finish()
+}
+
+pub fn get_error_message(flash_messages: IncomingFlashMessages) -> String {
+    let mut error_string = String::new();
+    for m in flash_messages.iter().filter(|m| m.level() == Level::Error) {
+        writeln!(error_string, "{}", m.content()).unwrap();
+    }
+    error_string
 }
