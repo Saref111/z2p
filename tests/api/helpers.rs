@@ -45,6 +45,10 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn get_change_password_html(&self) -> String {
+        self.get_change_password().await.text().await.unwrap()
+    }
+
     pub async fn get_change_password(&self) -> reqwest::Response {
         self.api_client
             .get(format!("{}/admin/password", &self.address))
@@ -88,7 +92,7 @@ impl TestApp {
             .unwrap()
     }
 
-    pub async fn post_login<Body>(&self, body: Body) -> reqwest::Response
+    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
     where
         Body: serde::Serialize,
     {
