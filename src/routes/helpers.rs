@@ -43,7 +43,7 @@ pub fn get_message(flash_messages: IncomingFlashMessages, level: Option<Level>) 
     let mut error_string = String::new();
     for m in flash_messages
         .iter()
-        .filter(|m| level.map_or(true, |l| m.level() == l))
+        .filter(|m| level.is_none_or(|l| m.level() == l))
     {
         writeln!(error_string, "{}", m.content()).unwrap();
     }
