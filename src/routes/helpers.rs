@@ -39,9 +39,12 @@ pub fn see_other(location: &str) -> HttpResponse {
         .finish()
 }
 
-pub fn get_error_message(flash_messages: IncomingFlashMessages) -> String {
+pub fn get_message(flash_messages: IncomingFlashMessages, level: Option<Level>) -> String {
     let mut error_string = String::new();
-    for m in flash_messages.iter().filter(|m| m.level() == Level::Error) {
+    for m in flash_messages
+        .iter()
+        .filter(|m| level.map_or(true, |l| m.level() == l))
+    {
         writeln!(error_string, "{}", m.content()).unwrap();
     }
     error_string
