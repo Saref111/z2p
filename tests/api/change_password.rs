@@ -81,3 +81,43 @@ async fn current_password_must_be_valid() {
     let html_page = app.get_change_password_html().await;
     assert!(html_page.contains("The current password is incorrect."));
 }
+
+#[tokio::test]
+async fn changing_password_works() {
+    let app = spawn_app().await;
+    let new_password = Uuid::new_v4().to_string();
+
+    let resp = app
+        .post_login(&serde_json::json!({
+            "username": &app.test_user.username,
+            "password": &app.test_user.password
+        }))
+        .await;
+    assert_is_redirect_to(&resp, "/admin/dashboard");
+
+    let resp = app
+        .post_change_password(&serde_json::json!({
+            "current_password": &app.test_user.password,
+            "new_password": &new_password,
+            "new_password_check": &new_password
+        }))
+        .await;
+    assert_is_redirect_to(&resp, "/admin/password");
+
+    let html_page = app.get_change_password_html().await;
+    assert!(html_page.contains("Your password has been changed."));
+
+    let resp = app.post_logout().await;
+    assert_is_redirect_to(&resp, "/login");
+
+    let html_page = app.get_login_html().await;
+    assert!(html_page.contains("You have successfully logged out."));
+
+    let resp = app
+        .post_login(&serde_json::json!({
+            "username": &app.test_user.username,
+            "password": &new_password
+        }))
+        .await;
+    assert_is_redirect_to(&resp, "/admin/dashboard");
+}

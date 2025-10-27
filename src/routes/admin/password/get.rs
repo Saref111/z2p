@@ -14,9 +14,9 @@ pub async fn change_password_form(
         return Ok(see_other("/login"));
     }
 
-    let error_string = get_message(flash_messages, Some(Level::Error));
+    let message_string = get_message(flash_messages, None);
 
-    let page = prepare_html_template(&[("error", &error_string)], "change_password_form.html");
+    let page = prepare_html_template(&[("message", &message_string)], "change_password_form.html");
     Ok(HttpResponse::Ok()
         .content_type(ContentType::html())
         .body(page))
