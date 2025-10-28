@@ -1,4 +1,4 @@
-use crate::{authentication::UserId, routes::helpers::e500, session_state::TypedSession};
+use crate::{authentication::UserId, routes::helpers::e500};
 
 use super::super::helpers::prepare_html_template;
 use actix_web::{HttpResponse, http::header::ContentType, web};

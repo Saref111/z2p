@@ -1,10 +1,7 @@
 use actix_web::HttpResponse;
 use actix_web_flash_messages::FlashMessage;
 
-use crate::{
-    routes::helpers::{e500, see_other},
-    session_state::TypedSession,
-};
+use crate::{routes::helpers::see_other, session_state::TypedSession};
 
 pub async fn logout(session: TypedSession) -> Result<HttpResponse, actix_web::error::Error> {
     session.logout();

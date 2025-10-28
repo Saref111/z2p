@@ -1,10 +1,7 @@
 use actix_web::{HttpResponse, http::header::ContentType};
 use actix_web_flash_messages::IncomingFlashMessages;
 
-use crate::{
-    routes::helpers::{e500, get_message, prepare_html_template, see_other},
-    session_state::TypedSession,
-};
+use crate::routes::helpers::{get_message, prepare_html_template};
 
 pub async fn change_password_form(
     flash_messages: IncomingFlashMessages,
