@@ -7,13 +7,8 @@ use crate::{
 };
 
 pub async fn change_password_form(
-    session: TypedSession,
     flash_messages: IncomingFlashMessages,
 ) -> Result<HttpResponse, actix_web::Error> {
-    if session.get_user_id().map_err(e500)?.is_none() {
-        return Ok(see_other("/login"));
-    }
-
     let message_string = get_message(flash_messages, None);
 
     let page = prepare_html_template(&[("message", &message_string)], "change_password_form.html");

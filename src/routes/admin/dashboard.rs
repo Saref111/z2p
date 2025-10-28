@@ -1,26 +1,16 @@
-use crate::{routes::helpers::e500, session_state::TypedSession};
+use crate::{authentication::UserId, routes::helpers::e500, session_state::TypedSession};
 
 use super::super::helpers::prepare_html_template;
-use actix_web::{
-    HttpResponse,
-    http::header::{ContentType, LOCATION},
-    web,
-};
+use actix_web::{HttpResponse, http::header::ContentType, web};
 use anyhow::Context;
 use sqlx::PgPool;
 use uuid::Uuid;
 
 pub async fn admin_dashboard(
-    session: TypedSession,
     pool: web::Data<PgPool>,
+    user_id: web::ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
-    let username = if let Some(user_id) = session.get_user_id().map_err(e500)? {
-        get_username(user_id, &pool).await.map_err(e500)?
-    } else {
-        return Ok(HttpResponse::SeeOther()
-            .insert_header((LOCATION, "/login"))
-            .finish());
-    };
+    let username = get_username(**user_id, &pool).await.map_err(e500)?;
 
     let page_string = prepare_html_template(&[("username", &username)], "dashboard.html");
     Ok(HttpResponse::Ok()
