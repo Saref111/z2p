@@ -9,6 +9,7 @@ mod subscriptions_confirm;
 
 pub use admin::*;
 pub use health_check::*;
+pub use helpers::{e500, see_other};
 pub use home::*;
 pub use login::*;
 pub use newsletters::*;
