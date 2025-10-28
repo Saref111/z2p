@@ -1,5 +1,3 @@
-use std::ops::Deref;
-
 use actix_web::{HttpResponse, web};
 use actix_web_flash_messages::FlashMessage;
 use secrecy::{ExposeSecret, SecretString};
@@ -7,14 +5,11 @@ use serde::Deserialize;
 use sqlx::PgPool;
 
 use crate::{
-    authentication::{
-        AuthError, Credentials, UserId, reject_anonymous_users, validate_credentials,
-    },
+    authentication::{AuthError, Credentials, UserId, validate_credentials},
     routes::{
         admin::dashboard::get_username,
         helpers::{e500, see_other},
     },
-    session_state::TypedSession,
 };
 
 #[derive(Deserialize)]
