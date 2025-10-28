@@ -1,4 +1,4 @@
-use tera::{self, Context as TeraContext};
+use super::super::helpers::prepare_html_template;
 
 pub fn get_email_text(name: &str, link: &str) -> String {
     format!(
@@ -17,10 +17,8 @@ pub fn get_email_text(name: &str, link: &str) -> String {
 }
 
 pub fn get_email_html(name: &str, link: &str) -> String {
-    let mut ctx = TeraContext::new();
-    ctx.insert("name", name);
-    ctx.insert("link", link);
-    let tera = tera::Tera::new("views/**/*").expect("Failed to initialize Tera templates");
-    tera.render("confirm_subscription_letter.html", &ctx)
-        .expect("Failed rendering email template")
+    prepare_html_template(
+        &[("name", name), ("link", link)],
+        "confirm_subscription_letter.html",
+    )
 }

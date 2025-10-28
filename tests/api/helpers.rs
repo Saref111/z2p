@@ -1,3 +1,7 @@
+use argon2::{
+    Algorithm, Argon2, Params, PasswordHasher, Version,
+    password_hash::{SaltString, rand_core::OsRng},
+};
 use once_cell::sync::Lazy;
 use reqwest::{Response, Url};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
@@ -30,6 +34,8 @@ pub struct TestApp {
     pub db_pool: PgPool,
     pub email_server: MockServer,
     pub port: u16,
+    pub test_user: TestUser,
+    pub api_client: reqwest::Client,
 }
 
 #[derive(Debug)]
@@ -39,9 +45,80 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn post_logout(&self) -> reqwest::Response {
+        self.api_client
+            .post(format!("{}/admin/logout", &self.address))
+            .send()
+            .await
+            .expect("Failed to execure request.")
+    }
+    pub async fn get_change_password_html(&self) -> String {
+        self.get_change_password().await.text().await.unwrap()
+    }
+
+    pub async fn get_change_password(&self) -> reqwest::Response {
+        self.api_client
+            .get(format!("{}/admin/password", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn post_change_password<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.api_client
+            .post(format!("{}/admin/password", &self.address))
+            .form(body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_admin_dashboard_html(&self) -> String {
+        self.get_admin_dashboard().await.text().await.unwrap()
+    }
+
+    pub async fn get_admin_dashboard(&self) -> Response {
+        self.api_client
+            .get(format!("{}/admin/dashboard", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn get_login_html(&self) -> String {
+        self.api_client
+            .get(&format!("{}/login", &self.address))
+            .send()
+            .await
+            .expect("Failde to send request.")
+            .text()
+            .await
+            .unwrap()
+    }
+
+    pub async fn post_login<Body>(&self, body: &Body) -> reqwest::Response
+    where
+        Body: serde::Serialize,
+    {
+        self.api_client
+            .post(&format!("{}/login", self.address))
+            .form(&body)
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     pub async fn post_newsletters(&self, body: serde_json::Value) -> Response {
-        reqwest::Client::new()
+        let TestUser {
+            username, password, ..
+        } = &self.test_user;
+
+        self.api_client
             .post(format!("{}/newsletters", &self.address))
+            .basic_auth(username, Some(password))
             .json(&body)
             .send()
             .await
@@ -49,7 +126,7 @@ impl TestApp {
     }
 
     pub async fn post_subscription(&self, body: String) -> Response {
-        reqwest::Client::new()
+        self.api_client
             .post(format!("{}/subscriptions", self.address))
             .body(body)
             .header("Content-type", "application/x-www-form-urlencoded")
@@ -128,12 +205,23 @@ pub async fn spawn_app() -> TestApp {
     let port = app.get_port();
     tokio::spawn(app.run_until_stopped());
 
-    TestApp {
+    let api_client = reqwest::Client::builder()
+        .cookie_store(true)
+        .redirect(reqwest::redirect::Policy::none())
+        .build()
+        .unwrap();
+
+    let app = TestApp {
         address: format!("http://127.0.0.1:{port}"),
         db_pool: get_connection_pull(&config.database),
         email_server,
         port,
-    }
+        test_user: TestUser::generate(),
+        api_client,
+    };
+    app.test_user.store(&app.db_pool).await;
+
+    app
 }
 
 pub async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
@@ -165,4 +253,50 @@ pub async fn create_confirmed_subscriber(app: &TestApp) {
         .unwrap()
         .error_for_status()
         .unwrap();
+}
+
+pub fn assert_is_redirect_to(resp: &reqwest::Response, location: &str) {
+    assert_eq!(resp.status().as_u16(), 303);
+    assert_eq!(resp.headers().get("Location").unwrap(), location);
+}
+
+pub struct TestUser {
+    pub user_id: Uuid,
+    pub username: String,
+    pub password: String,
+}
+
+impl TestUser {
+    pub fn generate() -> Self {
+        Self {
+            user_id: Uuid::new_v4(),
+            username: Uuid::new_v4().to_string(),
+            password: Uuid::new_v4().to_string(),
+        }
+    }
+
+    pub async fn store(&self, db_pool: &PgPool) {
+        let salt = SaltString::generate(&mut OsRng);
+        let password_hash = Argon2::new(
+            Algorithm::Argon2id,
+            Version::V0x13,
+            Params::new(15000, 2, 1, None).unwrap(),
+        )
+        .hash_password(self.password.as_bytes(), &salt)
+        .unwrap()
+        .to_string();
+
+        sqlx::query!(
+            r#"
+            INSERT INTO users (user_id, username, password_hash) 
+            VALUES ($1, $2, $3)
+        "#,
+            self.user_id,
+            self.username,
+            password_hash
+        )
+        .execute(db_pool)
+        .await
+        .expect("Failed to store test user.");
+    }
 }

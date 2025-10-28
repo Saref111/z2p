@@ -14,13 +14,8 @@ use crate::{
 use super::{
     errors::{StoreTokenError, SubscribeError},
     helpers::{get_email_html, get_email_text},
+    types::FormData,
 };
-
-#[derive(serde::Deserialize)]
-pub struct FormData {
-    pub name: String,
-    pub email: String,
-}
 
 #[tracing::instrument(
     name = "Adding a new subscriber.",

@@ -1,5 +1,6 @@
 app:
   port: 8000
+  hmac_secret: "super-long-and-secret-random-key-needed-to-verify-message-integrity"
 database:
   host: "127.0.0.1"
   port: 5432
@@ -11,3 +12,4 @@ email_client:
   sender_email: "test@gmail.com"
   auth_token: "secret-auth-token"
   timeout_ms: 10000
+redis_uri: "redis://127.0.0.1:6379"

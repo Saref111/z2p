@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-TEST_NAME="subscribe_fails_if_there_is_fatal_db_error"
+TEST_NAME="confirmed_subscriber_should_get_a_newsletter"
 
 export RUST_LOG="sqlx=error,info"
 export TEST_LOG=enabled
