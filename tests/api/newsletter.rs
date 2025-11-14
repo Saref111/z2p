@@ -9,6 +9,7 @@ use super::helpers::{create_confirmed_subscriber, create_unconfirmed_subscriber,
 #[tokio::test]
 async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
     let app = spawn_app().await;
+    app.login_test_user().await;
     create_unconfirmed_subscriber(&app).await;
 
     Mock::given(any())
@@ -34,6 +35,8 @@ async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
 #[tokio::test]
 async fn confirmed_subscriber_should_get_a_newsletter() {
     let app = spawn_app().await;
+
+    app.login_test_user().await;
     create_confirmed_subscriber(&app).await;
 
     Mock::given(path("v1/email"))
@@ -60,6 +63,8 @@ async fn confirmed_subscriber_should_get_a_newsletter() {
 #[tokio::test]
 async fn newsletters_return_400_for_invalid_input() {
     let app = spawn_app().await;
+    app.login_test_user().await;
+
     let test_cases = vec![
         (
             serde_json::json!({

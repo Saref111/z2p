@@ -45,6 +45,15 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn login_test_user(&self) -> reqwest::Response {
+        let login_body = serde_json::json!({
+            "username": &self.test_user.username,
+            "password": &self.test_user.password
+        });
+
+        self.post_login(&login_body).await
+    }
+
     pub async fn post_logout(&self) -> reqwest::Response {
         self.api_client
             .post(format!("{}/admin/logout", &self.address))
@@ -117,7 +126,7 @@ impl TestApp {
         } = &self.test_user;
 
         self.api_client
-            .post(format!("{}/newsletters", &self.address))
+            .post(format!("{}/admin/newsletters", &self.address))
             .basic_auth(username, Some(password))
             .json(&body)
             .send()
