@@ -45,6 +45,18 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn get_send_newsletters_html(&self) -> String {
+        self.get_send_newsletters().await.text().await.unwrap()
+    }
+
+    pub async fn get_send_newsletters(&self) -> reqwest::Response {
+        self.api_client
+            .get(format!("{}/admin/newsletters", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
     pub async fn login_test_user(&self) -> reqwest::Response {
         let login_body = serde_json::json!({
             "username": &self.test_user.username,
@@ -61,6 +73,7 @@ impl TestApp {
             .await
             .expect("Failed to execure request.")
     }
+
     pub async fn get_change_password_html(&self) -> String {
         self.get_change_password().await.text().await.unwrap()
     }

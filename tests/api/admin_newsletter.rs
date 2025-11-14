@@ -24,6 +24,17 @@ async fn you_must_be_logged_in_to_send_newsletters() {
 }
 
 #[tokio::test]
+async fn logged_user_reaches_send_newsletters_page() {
+    let app = spawn_app().await;
+    app.login_test_user().await;
+    create_confirmed_subscriber(&app).await;
+
+    let page_html = app.get_send_newsletters_html().await;
+
+    assert!(page_html.contains("form name=\"send-newsletters\""));
+}
+
+#[tokio::test]
 async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
     let app = spawn_app().await;
     app.login_test_user().await;
