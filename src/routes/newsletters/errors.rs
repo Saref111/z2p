@@ -1,10 +1,4 @@
-use actix_web::{
-    HttpResponse, ResponseError,
-    http::{
-        StatusCode,
-        header::{self, HeaderValue},
-    },
-};
+use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 
 use super::super::helpers::error_chain_fmt;
 

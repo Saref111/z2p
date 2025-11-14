@@ -8,7 +8,9 @@
 
 <body>
     <form name="send-newsletters" action="/admin/newsletters" method="post">
-        <textarea name="letter" id="letter"></textarea>
+        <input type="text" name="title" id="title">
+        <textarea name="html" id="html"></textarea>
+        <textarea name="text" id="text"></textarea>
         <button type="submit">Send</button>
     </form>
 </body>
