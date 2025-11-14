@@ -1,44 +1,39 @@
 use super::{
     errors::PublishError,
-    helpers::basic_auth,
     types::{BodySchema, ConfirmedSubscriber},
 };
 use crate::{
-    authentication::{AuthError, validate_credentials},
+    authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
+    routes::{e500, get_username},
 };
-use actix_web::{HttpRequest, HttpResponse};
+use actix_web::HttpResponse;
 use anyhow::Context;
 use sqlx::PgPool;
 
 #[tracing::instrument(
     name = "Publish newsletter",
-    skip(db_pool, email_client, body, req),
+    skip(db_pool, email_client, body, user_id),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn publish_newsletter(
-    body: actix_web::web::Json<BodySchema>,
+    body: actix_web::web::Form<BodySchema>,
     db_pool: actix_web::web::Data<PgPool>,
     email_client: actix_web::web::Data<EmailClient>,
-    req: HttpRequest,
-) -> Result<HttpResponse, PublishError> {
-    let credentials = basic_auth(req.headers()).map_err(PublishError::AuthError)?;
-
-    tracing::Span::current().record("username", tracing::field::display(&credentials.username));
-
-    let user_id = validate_credentials(credentials, &db_pool)
+    user_id: actix_web::web::ReqData<UserId>,
+) -> Result<HttpResponse, actix_web::Error> {
+    let username = get_username(**user_id, &db_pool)
         .await
-        .map_err(|e| match e {
-            AuthError::InvalidCredentials(_) => PublishError::AuthError(e.into()),
-            AuthError::UnexpectedError(_) => PublishError::UnexpectedError(e.into()),
-        })?;
+        .map_err(PublishError::UnexpectedError)?;
+    tracing::Span::current().record("username", tracing::field::display(&username));
+    tracing::Span::current().record("user_id", tracing::field::display(&(**user_id)));
 
-    tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+    let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await.map_err(e500)?;
 
-    let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await?;
-
-    send_newsletters(confirmed_subscribers, &email_client, &body).await?;
+    send_newsletters(confirmed_subscribers, &email_client, &body)
+        .await
+        .map_err(e500)?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -69,8 +64,8 @@ async fn send_newsletters(
             .send_email(
                 subscribers_chunk.to_vec(),
                 &body.title,
-                &body.content.html,
-                &body.content.text,
+                &body.html,
+                &body.text,
             )
             .await
             .with_context(|| {

@@ -3,7 +3,7 @@ mod health_check;
 mod helpers;
 mod home;
 mod login;
-mod newsletters;
+// mod newsletters;
 mod subscriptions;
 mod subscriptions_confirm;
 
@@ -12,6 +12,6 @@ pub use health_check::*;
 pub use helpers::{e500, see_other};
 pub use home::*;
 pub use login::*;
-pub use newsletters::*;
+// pub use newsletters::*;
 pub use subscriptions::*;
 pub use subscriptions_confirm::*;

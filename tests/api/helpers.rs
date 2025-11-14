@@ -45,6 +45,27 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn get_send_newsletters_html(&self) -> String {
+        self.get_send_newsletters().await.text().await.unwrap()
+    }
+
+    pub async fn get_send_newsletters(&self) -> reqwest::Response {
+        self.api_client
+            .get(format!("{}/admin/newsletters", &self.address))
+            .send()
+            .await
+            .expect("Failed to execute request.")
+    }
+
+    pub async fn login_test_user(&self) -> reqwest::Response {
+        let login_body = serde_json::json!({
+            "username": &self.test_user.username,
+            "password": &self.test_user.password
+        });
+
+        self.post_login(&login_body).await
+    }
+
     pub async fn post_logout(&self) -> reqwest::Response {
         self.api_client
             .post(format!("{}/admin/logout", &self.address))
@@ -52,6 +73,7 @@ impl TestApp {
             .await
             .expect("Failed to execure request.")
     }
+
     pub async fn get_change_password_html(&self) -> String {
         self.get_change_password().await.text().await.unwrap()
     }
@@ -111,15 +133,13 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_newsletters(&self, body: serde_json::Value) -> Response {
-        let TestUser {
-            username, password, ..
-        } = &self.test_user;
-
+    pub async fn post_newsletters<Body>(&self, body: Body) -> Response
+    where
+        Body: serde::Serialize,
+    {
         self.api_client
-            .post(format!("{}/newsletters", &self.address))
-            .basic_auth(username, Some(password))
-            .json(&body)
+            .post(format!("{}/admin/newsletters", &self.address))
+            .form(&body)
             .send()
             .await
             .expect("Failed to execute request.")
