@@ -1,13 +1,8 @@
 use crate::domain::SubscriberEmail;
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, serde::Serialize)]
 pub struct BodySchema {
     pub title: String,
-    pub content: Content,
-}
-
-#[derive(serde::Deserialize)]
-pub struct Content {
     pub text: String,
     pub html: String,
 }

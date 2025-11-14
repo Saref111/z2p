@@ -14,10 +14,8 @@ async fn you_must_be_logged_in_to_send_newsletters() {
     let body = serde_json::json!(
     {
         "title": "Newsletter title",
-        "content": {
-            "html": "HTML content",
-            "text": "text content"
-        }
+        "html": "HTML content",
+        "text": "text content"
     });
 
     let resp = app.post_newsletters(body).await;
@@ -40,10 +38,8 @@ async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
     let body = serde_json::json!(
     {
         "title": "Newsletter title",
-        "content": {
-            "html": "HTML content",
-            "text": "text content"
-        }
+        "html": "HTML content",
+        "text": "text content"
     });
 
     let response = app.post_newsletters(body).await;
@@ -68,10 +64,8 @@ async fn confirmed_subscriber_should_get_a_newsletter() {
     let body = serde_json::json!(
     {
         "title": "Newsletter title",
-        "content": {
-            "html": "HTML content",
-            "text": "text content"
-        }
+        "html": "HTML content",
+        "text": "text content"
     });
 
     let response = app.post_newsletters(body).await;
@@ -87,10 +81,8 @@ async fn newsletters_return_400_for_invalid_input() {
     let test_cases = vec![
         (
             serde_json::json!({
-                "content": {
-                    "html": "<p>Html content</p>",
-                    "text": "Text content"
-                }
+                "html": "<p>Html content</p>",
+                "text": "Text content"
             }),
             "missing title",
         ),

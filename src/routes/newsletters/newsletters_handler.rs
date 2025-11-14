@@ -3,8 +3,10 @@ use super::{
     types::{BodySchema, ConfirmedSubscriber},
 };
 use crate::{
-    authentication::UserId, domain::SubscriberEmail, email_client::EmailClient,
-    routes::get_username,
+    authentication::UserId,
+    domain::SubscriberEmail,
+    email_client::EmailClient,
+    routes::{e500, get_username},
 };
 use actix_web::HttpResponse;
 use anyhow::Context;
@@ -16,20 +18,22 @@ use sqlx::PgPool;
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn publish_newsletter(
-    body: actix_web::web::Json<BodySchema>,
+    body: actix_web::web::Form<BodySchema>,
     db_pool: actix_web::web::Data<PgPool>,
     email_client: actix_web::web::Data<EmailClient>,
     user_id: actix_web::web::ReqData<UserId>,
-) -> Result<HttpResponse, PublishError> {
+) -> Result<HttpResponse, actix_web::Error> {
     let username = get_username(**user_id, &db_pool)
         .await
         .map_err(PublishError::UnexpectedError)?;
     tracing::Span::current().record("username", tracing::field::display(&username));
     tracing::Span::current().record("user_id", tracing::field::display(&(**user_id)));
 
-    let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await?;
+    let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await.map_err(e500)?;
 
-    send_newsletters(confirmed_subscribers, &email_client, &body).await?;
+    send_newsletters(confirmed_subscribers, &email_client, &body)
+        .await
+        .map_err(e500)?;
 
     Ok(HttpResponse::Ok().finish())
 }
@@ -60,8 +64,8 @@ async fn send_newsletters(
             .send_email(
                 subscribers_chunk.to_vec(),
                 &body.title,
-                &body.content.html,
-                &body.content.text,
+                &body.html,
+                &body.text,
             )
             .await
             .with_context(|| {
