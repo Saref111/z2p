@@ -1,6 +1,6 @@
 use actix_web::{HttpResponse, ResponseError, http::StatusCode};
 
-use super::super::helpers::error_chain_fmt;
+use super::super::super::super::helpers::error_chain_fmt;
 
 #[derive(thiserror::Error)]
 pub enum PublishError {
