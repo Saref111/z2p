@@ -1,5 +1,4 @@
 mod errors;
-mod helpers;
 mod newsletters_handler;
 mod types;
 

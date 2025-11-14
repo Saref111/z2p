@@ -121,13 +121,8 @@ impl TestApp {
     }
 
     pub async fn post_newsletters(&self, body: serde_json::Value) -> Response {
-        let TestUser {
-            username, password, ..
-        } = &self.test_user;
-
         self.api_client
             .post(format!("{}/admin/newsletters", &self.address))
-            .basic_auth(username, Some(password))
             .json(&body)
             .send()
             .await

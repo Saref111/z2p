@@ -1,40 +1,31 @@
 use super::{
     errors::PublishError,
-    helpers::basic_auth,
     types::{BodySchema, ConfirmedSubscriber},
 };
 use crate::{
-    authentication::{AuthError, validate_credentials},
-    domain::SubscriberEmail,
-    email_client::EmailClient,
+    authentication::UserId, domain::SubscriberEmail, email_client::EmailClient,
+    routes::get_username,
 };
-use actix_web::{HttpRequest, HttpResponse};
+use actix_web::HttpResponse;
 use anyhow::Context;
 use sqlx::PgPool;
 
 #[tracing::instrument(
     name = "Publish newsletter",
-    skip(db_pool, email_client, body, req),
+    skip(db_pool, email_client, body, user_id),
     fields(username=tracing::field::Empty, user_id=tracing::field::Empty)
 )]
 pub async fn publish_newsletter(
     body: actix_web::web::Json<BodySchema>,
     db_pool: actix_web::web::Data<PgPool>,
     email_client: actix_web::web::Data<EmailClient>,
-    req: HttpRequest,
+    user_id: actix_web::web::ReqData<UserId>,
 ) -> Result<HttpResponse, PublishError> {
-    let credentials = basic_auth(req.headers()).map_err(PublishError::AuthError)?;
-
-    tracing::Span::current().record("username", tracing::field::display(&credentials.username));
-
-    let user_id = validate_credentials(credentials, &db_pool)
+    let username = get_username(**user_id, &db_pool)
         .await
-        .map_err(|e| match e {
-            AuthError::InvalidCredentials(_) => PublishError::AuthError(e.into()),
-            AuthError::UnexpectedError(_) => PublishError::UnexpectedError(e.into()),
-        })?;
-
-    tracing::Span::current().record("user_id", tracing::field::display(&user_id));
+        .map_err(PublishError::UnexpectedError)?;
+    tracing::Span::current().record("username", tracing::field::display(&username));
+    tracing::Span::current().record("user_id", tracing::field::display(&(**user_id)));
 
     let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await?;
 
