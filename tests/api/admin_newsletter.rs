@@ -24,6 +24,34 @@ async fn you_must_be_logged_in_to_send_newsletters() {
 }
 
 #[tokio::test]
+async fn get_message_on_successful_newsletter_publish() {
+    let app = spawn_app().await;
+    app.login_test_user().await;
+    create_confirmed_subscriber(&app).await;
+
+    Mock::given(any())
+        .respond_with(ResponseTemplate::new(200))
+        .expect(1)
+        .mount(&app.email_server)
+        .await;
+
+    let body = serde_json::json!(
+    {
+        "title": "Newsletter title",
+        "html": "HTML content",
+        "text": "text content"
+    });
+
+    let resp = app.post_newsletters(body).await;
+
+    assert_is_redirect_to(&resp, "/admin/newsletters");
+
+    let page_html = app.get_send_newsletters_html().await;
+
+    assert!(page_html.contains("The newsletter issue has been published!"))
+}
+
+#[tokio::test]
 async fn logged_user_reaches_send_newsletters_page() {
     let app = spawn_app().await;
     app.login_test_user().await;
@@ -55,7 +83,7 @@ async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
 
     let response = app.post_newsletters(body).await;
 
-    assert_eq!(response.status().as_u16(), 200);
+    assert_is_redirect_to(&response, "/admin/newsletters");
 }
 
 #[tokio::test]
@@ -81,7 +109,7 @@ async fn confirmed_subscriber_should_get_a_newsletter() {
 
     let response = app.post_newsletters(body).await;
 
-    assert_eq!(response.status().as_u16(), 200);
+    assert_is_redirect_to(&response, "/admin/newsletters");
 }
 
 #[tokio::test]

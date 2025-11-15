@@ -6,9 +6,10 @@ use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
-    routes::{e500, get_username},
+    routes::{e500, get_username, see_other},
 };
 use actix_web::HttpResponse;
+use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
 use sqlx::PgPool;
 
@@ -30,12 +31,12 @@ pub async fn publish_newsletter(
     tracing::Span::current().record("user_id", tracing::field::display(&(**user_id)));
 
     let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await.map_err(e500)?;
-
     send_newsletters(confirmed_subscribers, &email_client, &body)
         .await
         .map_err(e500)?;
 
-    Ok(HttpResponse::Ok().finish())
+    FlashMessage::info("The newsletter issue has been published!").send();
+    Ok(see_other("/admin/newsletters"))
 }
 
 #[tracing::instrument(name = "Sending newsletters to confirmed subscribers", skip_all)]
