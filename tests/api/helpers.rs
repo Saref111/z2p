@@ -133,7 +133,7 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_newsletters<Body>(&self, body: Body) -> Response
+    pub async fn post_newsletters<Body>(&self, body: &Body) -> Response
     where
         Body: serde::Serialize,
     {
