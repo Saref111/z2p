@@ -6,7 +6,8 @@ use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
-    routes::{e500, get_username, see_other},
+    idempotency::IdempotencyKey,
+    routes::{e500, get_username, helpers::e400, see_other},
 };
 use actix_web::HttpResponse;
 use actix_web_flash_messages::FlashMessage;
@@ -24,6 +25,13 @@ pub async fn publish_newsletter(
     email_client: actix_web::web::Data<EmailClient>,
     user_id: actix_web::web::ReqData<UserId>,
 ) -> Result<HttpResponse, actix_web::Error> {
+    let BodySchema {
+        title,
+        text,
+        html,
+        idempotency_key,
+    } = body.0;
+    let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
     let username = get_username(**user_id, &db_pool)
         .await
         .map_err(PublishError::UnexpectedError)?;
@@ -31,7 +39,7 @@ pub async fn publish_newsletter(
     tracing::Span::current().record("user_id", tracing::field::display(&(**user_id)));
 
     let confirmed_subscribers = get_confirmed_subscribers(&db_pool).await.map_err(e500)?;
-    send_newsletters(confirmed_subscribers, &email_client, &body)
+    send_newsletters(confirmed_subscribers, &email_client, title, html, text)
         .await
         .map_err(e500)?;
 
@@ -43,7 +51,9 @@ pub async fn publish_newsletter(
 async fn send_newsletters(
     subscribers: Vec<Result<ConfirmedSubscriber, anyhow::Error>>,
     email_client: &EmailClient,
-    body: &BodySchema,
+    title: String,
+    html: String,
+    text: String,
 ) -> Result<(), anyhow::Error> {
     let chunks = subscribers
         .iter()
@@ -62,12 +72,7 @@ async fn send_newsletters(
 
     for subscribers_chunk in chunks.chunks(50) {
         email_client
-            .send_email(
-                subscribers_chunk.to_vec(),
-                &body.title,
-                &body.html,
-                &body.text,
-            )
+            .send_email(subscribers_chunk.to_vec(), &title, &html, &text)
             .await
             .with_context(|| {
                 format!(

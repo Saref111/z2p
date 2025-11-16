@@ -5,6 +5,7 @@ pub struct BodySchema {
     pub title: String,
     pub text: String,
     pub html: String,
+    pub idempotency_key: String,
 }
 
 pub struct ConfirmedSubscriber {
