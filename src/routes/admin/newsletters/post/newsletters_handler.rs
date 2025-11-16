@@ -6,7 +6,7 @@ use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
-    idempotency::IdempotencyKey,
+    idempotency::{IdempotencyKey, get_saved_response, save_response},
     routes::{e500, get_username, helpers::e400, see_other},
 };
 use actix_web::HttpResponse;
@@ -32,6 +32,15 @@ pub async fn publish_newsletter(
         idempotency_key,
     } = body.0;
     let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
+
+    if let Some(saved_response) = get_saved_response(&db_pool, &idempotency_key, **user_id)
+        .await
+        .map_err(e500)?
+    {
+        FlashMessage::info("This newsletter issue has already been published!").send();
+        return Ok(saved_response);
+    }
+
     let username = get_username(**user_id, &db_pool)
         .await
         .map_err(PublishError::UnexpectedError)?;
@@ -44,7 +53,11 @@ pub async fn publish_newsletter(
         .map_err(e500)?;
 
     FlashMessage::info("The newsletter issue has been published!").send();
-    Ok(see_other("/admin/newsletters"))
+    let response = see_other("/admin/newsletters");
+    let response = save_response(&db_pool, &idempotency_key, **user_id, response)
+        .await
+        .map_err(e500)?;
+    Ok(response)
 }
 
 #[tracing::instrument(name = "Sending newsletters to confirmed subscribers", skip_all)]

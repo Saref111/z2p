@@ -10,6 +10,7 @@
     <p>{{ message }}</p>
     <form name="send-newsletters" action="/admin/newsletters" method="post">
         <input type="text" name="title" id="title">
+        <input hidden type="text" name="idempotency_key" value="{{ idempotency_key }}">
         <textarea name="html" id="html"></textarea>
         <textarea name="text" id="text"></textarea>
         <button type="submit">Send</button>

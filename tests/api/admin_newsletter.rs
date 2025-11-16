@@ -37,7 +37,7 @@ async fn newsletter_creation_is_idempotent() {
     assert_is_redirect_to(&resp, "/admin/newsletters");
 
     let page_html = app.get_send_newsletters_html().await;
-    assert!(page_html.contains("The newsletter issue has been published!"))
+    assert!(page_html.contains("This newsletter issue has already been published!"))
 }
 
 #[tokio::test]
@@ -48,7 +48,8 @@ async fn you_must_be_logged_in_to_send_newsletters() {
     {
         "title": "Newsletter title",
         "html": "HTML content",
-        "text": "text content"
+        "text": "text content",
+        "idempotency_key": uuid::Uuid::new_v4().to_string()
     });
 
     let resp = app.post_newsletters(&body).await;
@@ -72,7 +73,8 @@ async fn get_message_on_successful_newsletter_publish() {
     {
         "title": "Newsletter title",
         "html": "HTML content",
-        "text": "text content"
+        "text": "text content",
+        "idempotency_key": uuid::Uuid::new_v4().to_string()
     });
 
     let resp = app.post_newsletters(&body).await;
@@ -111,7 +113,8 @@ async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
     {
         "title": "Newsletter title",
         "html": "HTML content",
-        "text": "text content"
+        "text": "text content",
+        "idempotency_key": uuid::Uuid::new_v4().to_string()
     });
 
     let response = app.post_newsletters(&body).await;
@@ -137,7 +140,8 @@ async fn confirmed_subscriber_should_get_a_newsletter() {
     {
         "title": "Newsletter title",
         "html": "HTML content",
-        "text": "text content"
+        "text": "text content",
+        "idempotency_key": uuid::Uuid::new_v4().to_string()
     });
 
     let response = app.post_newsletters(&body).await;
@@ -154,15 +158,25 @@ async fn newsletters_return_400_for_invalid_input() {
         (
             serde_json::json!({
                 "html": "<p>Html content</p>",
-                "text": "Text content"
+                "text": "Text content",
+                "idempotency_key": uuid::Uuid::new_v4().to_string()
             }),
             "missing title",
         ),
         (
             serde_json::json!({
-                "title": "Title"
+                "title": "Title",
+                "idempotency_key": uuid::Uuid::new_v4().to_string()
             }),
             "missing content",
+        ),
+        (
+            serde_json::json!({
+                "title": "Title",
+                "html": "<p>Html content</p>",
+                "text": "Text content"
+            }),
+            "missing idempotent key",
         ),
     ];
 
