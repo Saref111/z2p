@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-TEST_NAME="concurrent_form_submission_is_handled_gracefully"
+TEST_NAME="newsletter_creation_is_idempotent"
 
 export RUST_LOG="sqlx=error,info"
 export TEST_LOG=enabled
