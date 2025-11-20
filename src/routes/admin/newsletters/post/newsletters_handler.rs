@@ -5,14 +5,13 @@ use super::{
 use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
-    email_client::EmailClient,
     idempotency::{IdempotencyKey, NextAction, save_response, try_processing},
     routes::{e500, get_username, helpers::e400, see_other},
 };
 use actix_web::HttpResponse;
 use actix_web_flash_messages::FlashMessage;
 use anyhow::Context;
-use sqlx::{PgConnection, PgPool, Postgres, Transaction};
+use sqlx::{PgConnection, PgPool};
 use uuid::Uuid;
 
 #[tracing::instrument(
@@ -50,11 +49,11 @@ pub async fn publish_newsletter(
     tracing::Span::current().record("username", tracing::field::display(&username));
     tracing::Span::current().record("user_id", tracing::field::display(&(*user_id)));
 
-    let issue_id = insert_newsletter_issue(&mut *transaction, &title, &text, &html)
+    let issue_id = insert_newsletter_issue(&mut transaction, &title, &text, &html)
         .await
         .context("Failed to store newsletter issue details")
         .map_err(e500)?;
-    enqueue_delivery_tasks(&mut *transaction, issue_id)
+    enqueue_delivery_tasks(&mut transaction, issue_id)
         .await
         .context("Failed to enqueue delivery tasks")
         .map_err(e500)?;
