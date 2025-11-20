@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use wiremock::{
-    Mock, ResponseTemplate,
+    Mock, MockBuilder, ResponseTemplate,
     matchers::{any, method, path},
 };
 
@@ -32,14 +32,19 @@ async fn newsletter_creation_is_idempotent() {
     let resp = app.post_newsletters(&newsletter_request_body).await;
     assert_is_redirect_to(&resp, "/admin/newsletters");
 
-    let page_html = app.get_send_newsletters_html().await;
-    assert!(page_html.contains("The newsletter issue has been published!"));
+    let html_page = app.get_send_newsletters_html().await;
+    assert!(
+        html_page.contains("The newsletter issue has been accepted - emails will go out shortly.")
+    );
 
     let resp = app.post_newsletters(&newsletter_request_body).await;
     assert_is_redirect_to(&resp, "/admin/newsletters");
 
-    let page_html = app.get_send_newsletters_html().await;
-    assert!(page_html.contains("The newsletter issue has been published!"))
+    let html_page = app.get_send_newsletters_html().await;
+    assert!(
+        html_page.contains("The newsletter issue has been accepted - emails will go out shortly.")
+    );
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -85,7 +90,11 @@ async fn get_message_on_successful_newsletter_publish() {
 
     let page_html = app.get_send_newsletters_html().await;
 
-    assert!(page_html.contains("The newsletter issue has been published!"))
+    assert!(
+        page_html.contains("The newsletter issue has been accepted - emails will go out shortly.")
+    );
+
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -122,6 +131,12 @@ async fn unconfirmed_subscriber_should_not_get_a_newsletter() {
     let response = app.post_newsletters(&body).await;
 
     assert_is_redirect_to(&response, "/admin/newsletters");
+
+    let html_page = app.get_send_newsletters_html().await;
+    assert!(
+        html_page.contains("The newsletter issue has been accepted - emails will go out shortly.")
+    );
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -149,6 +164,12 @@ async fn confirmed_subscriber_should_get_a_newsletter() {
     let response = app.post_newsletters(&body).await;
 
     assert_is_redirect_to(&response, "/admin/newsletters");
+
+    let html_page = app.get_send_newsletters_html().await;
+    assert!(
+        html_page.contains("The newsletter issue has been accepted - emails will go out shortly.")
+    );
+    app.dispatch_all_pending_emails().await;
 }
 
 #[tokio::test]
@@ -221,4 +242,10 @@ async fn concurrent_form_submission_is_handled_gracefully() {
         response1.text().await.unwrap(),
         response2.text().await.unwrap()
     );
+
+    app.dispatch_all_pending_emails().await;
+}
+
+fn when_sending_an_email() -> MockBuilder {
+    Mock::given(path("v1/email")).and(method("POST"))
 }

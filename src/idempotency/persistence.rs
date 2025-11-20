@@ -101,6 +101,7 @@ pub async fn try_processing(
     user_id: Uuid,
 ) -> Result<NextAction, anyhow::Error> {
     let mut transaction = pool.begin().await?;
+
     let n_inserted_rows = sqlx::query!(
         r#"
         INSERT INTO idempotency (

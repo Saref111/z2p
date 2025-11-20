@@ -1,6 +1,6 @@
 use crate::authentication::reject_anonymous_users;
 use crate::configuration::{DatabaseSettings, Settings};
-use crate::email_client::EmailClient;
+use crate::email_client::{self, EmailClient};
 use crate::routes::{
     admin_dashboard, change_password, change_password_form, confirm, health_check, home, login,
     login_form, logout, publish_newsletter, send_newsletters_form, subscribe,
@@ -30,19 +30,7 @@ pub struct ApplicationBaseURL(pub String);
 
 impl Application {
     pub async fn build(config: Settings) -> Result<Self, anyhow::Error> {
-        let email_sender = config
-            .email_client
-            .sender()
-            .expect("Invalid sender email address.");
-
-        let timeout = config.email_client.timeout();
-        let email_client = EmailClient::new(
-            config.email_client.base_url,
-            email_sender,
-            config.email_client.auth_token,
-            timeout,
-        );
-
+        let email_client = config.email_client.client();
         let address = format!("{}:{}", config.app.host, config.app.port);
         let connection_pool = get_connection_pull(&config.database);
 

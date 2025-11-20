@@ -4375,6 +4375,7 @@ dependencies = [
  "serde",
  "serde-aux",
  "serde_json",
+ "serde_urlencoded",
  "sqlx",
  "tera",
  "thiserror 2.0.17",
