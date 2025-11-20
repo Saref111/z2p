@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use wiremock::{
-    Mock, MockBuilder, ResponseTemplate,
+    Mock, ResponseTemplate,
     matchers::{any, method, path},
 };
 
@@ -244,8 +244,4 @@ async fn concurrent_form_submission_is_handled_gracefully() {
     );
 
     app.dispatch_all_pending_emails().await;
-}
-
-fn when_sending_an_email() -> MockBuilder {
-    Mock::given(path("v1/email")).and(method("POST"))
 }

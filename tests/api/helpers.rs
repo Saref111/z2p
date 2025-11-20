@@ -9,7 +9,6 @@ use once_cell::sync::Lazy;
 use reqwest::{Response, Url};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
 use uuid::Uuid;
-use wiremock::MockBuilder;
 use wiremock::{
     Mock, MockServer, ResponseTemplate,
     matchers::{method, path},
