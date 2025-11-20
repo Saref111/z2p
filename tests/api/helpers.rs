@@ -2,6 +2,9 @@ use argon2::{
     Algorithm, Argon2, Params, PasswordHasher, Version,
     password_hash::{SaltString, rand_core::OsRng},
 };
+use fake::Fake;
+use fake::faker::internet::en::SafeEmail;
+use fake::faker::name::en::Name;
 use once_cell::sync::Lazy;
 use reqwest::{Response, Url};
 use sqlx::{Connection, Executor, PgConnection, PgPool};
@@ -12,6 +15,8 @@ use wiremock::{
 };
 use z2p::{
     configuration::{DatabaseSettings, get_configuration},
+    email_client::EmailClient,
+    issue_delivery_worker::{ExecutionOutcome, try_execute_task},
     startup::{Application, get_connection_pull},
     telemetry::{get_subscriber, init_subscriber},
 };
@@ -36,6 +41,7 @@ pub struct TestApp {
     pub port: u16,
     pub test_user: TestUser,
     pub api_client: reqwest::Client,
+    pub email_client: EmailClient,
 }
 
 #[derive(Debug)]
@@ -45,6 +51,18 @@ pub struct ConfirmationLinks {
 }
 
 impl TestApp {
+    pub async fn dispatch_all_pending_emails(&self) {
+        loop {
+            if let ExecutionOutcome::EmptyQueue =
+                try_execute_task(&self.db_pool, &self.email_client)
+                    .await
+                    .unwrap()
+            {
+                break;
+            }
+        }
+    }
+
     pub async fn get_send_newsletters_html(&self) -> String {
         self.get_send_newsletters().await.text().await.unwrap()
     }
@@ -133,7 +151,7 @@ impl TestApp {
             .expect("Failed to execute request.")
     }
 
-    pub async fn post_newsletters<Body>(&self, body: Body) -> Response
+    pub async fn post_newsletters<Body>(&self, body: &Body) -> Response
     where
         Body: serde::Serialize,
     {
@@ -238,6 +256,7 @@ pub async fn spawn_app() -> TestApp {
         port,
         test_user: TestUser::generate(),
         api_client,
+        email_client: config.email_client.client(),
     };
     app.test_user.store(&app.db_pool).await;
 
@@ -245,7 +264,13 @@ pub async fn spawn_app() -> TestApp {
 }
 
 pub async fn create_unconfirmed_subscriber(app: &TestApp) -> ConfirmationLinks {
-    let body = "name=le%20guin&email=ursula_le_guin%40gmail.com";
+    let name: String = Name().fake();
+    let email: String = SafeEmail().fake();
+    let body = serde_urlencoded::to_string(&serde_json::json!({
+        "name": name,
+        "email": email
+    }))
+    .unwrap();
 
     let _mock_guard = Mock::given(path("v1/email"))
         .and(method("POST"))
