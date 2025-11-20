@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 
-TEST_NAME="confirmed_subscriber_should_get_a_newsletter"
+TEST_NAME="concurrent_form_submission_is_handled_gracefully"
 
 export RUST_LOG="sqlx=error,info"
 export TEST_LOG=enabled
