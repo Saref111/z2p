@@ -39,7 +39,7 @@ async fn newsletter_creation_is_idempotent() {
     assert_is_redirect_to(&resp, "/admin/newsletters");
 
     let page_html = app.get_send_newsletters_html().await;
-    assert!(page_html.contains("This newsletter issue has already been published!"))
+    assert!(page_html.contains("The newsletter issue has been published!"))
 }
 
 #[tokio::test]

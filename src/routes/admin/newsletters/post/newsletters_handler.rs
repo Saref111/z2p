@@ -6,7 +6,7 @@ use crate::{
     authentication::UserId,
     domain::SubscriberEmail,
     email_client::EmailClient,
-    idempotency::{IdempotencyKey, NextAction, get_saved_response, save_response, try_processing},
+    idempotency::{IdempotencyKey, NextAction, save_response, try_processing},
     routes::{e500, get_username, helpers::e400, see_other},
 };
 use actix_web::HttpResponse;
@@ -32,16 +32,16 @@ pub async fn publish_newsletter(
         idempotency_key,
     } = body.0;
     let idempotency_key: IdempotencyKey = idempotency_key.try_into().map_err(e400)?;
-    match try_processing(&db_pool, &idempotency_key, **user_id)
+    let mut transaction = match try_processing(&db_pool, &idempotency_key, **user_id)
         .await
         .map_err(e500)?
     {
-        NextAction::StartProcessing => {}
+        NextAction::StartProcessing(t) => t,
         NextAction::ReturnSavedResponse(saved_response) => {
             success_message().send();
             return Ok(saved_response);
         }
-    }
+    };
 
     let username = get_username(**user_id, &db_pool)
         .await
@@ -56,7 +56,7 @@ pub async fn publish_newsletter(
 
     success_message().send();
     let response = see_other("/admin/newsletters");
-    let response = save_response(&db_pool, &idempotency_key, **user_id, response)
+    let response = save_response(transaction, &idempotency_key, **user_id, response)
         .await
         .map_err(e500)?;
     Ok(response)
