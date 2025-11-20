@@ -1,55 +1,15 @@
-use std::time::Duration;
-
 use crate::{
     configuration::Settings, domain::SubscriberEmail, email_client::EmailClient,
-    routes::ConfirmedSubscriber, startup::get_connection_pull,
+    startup::get_connection_pull,
 };
-use anyhow::Context;
 use sqlx::{PgPool, Postgres, Transaction};
+use std::time::Duration;
 use tracing::{Span, field::display};
 use uuid::Uuid;
 
 pub enum ExecutionOutcome {
     TaskCompleted,
     EmptyQueue,
-}
-
-#[tracing::instrument(name = "Sending newsletters to confirmed subscribers", skip_all)]
-async fn send_newsletters(
-    subscribers: Vec<Result<ConfirmedSubscriber, anyhow::Error>>,
-    email_client: &EmailClient,
-    title: String,
-    html: String,
-    text: String,
-) -> Result<(), anyhow::Error> {
-    let chunks = subscribers
-        .iter()
-        .filter_map(|s| match s {
-            Ok(s) => Some(&s.email),
-            Err(err) => {
-                tracing::warn!(
-                    err.cause_chain = ?err,
-                    "Skipping the confirmed subscriber. \
-                    The stored contact details are invalid."
-                );
-                None
-            }
-        })
-        .collect::<Vec<&SubscriberEmail>>();
-
-    for subscribers_chunk in chunks.chunks(50) {
-        email_client
-            .send_email(subscribers_chunk.to_vec(), &title, &html, &text)
-            .await
-            .with_context(|| {
-                format!(
-                    "Failed to send newsletter issue to {:#?}",
-                    &subscribers_chunk
-                )
-            })?;
-    }
-
-    Ok(())
 }
 
 #[tracing::instrument(
@@ -196,11 +156,6 @@ async fn worker_loop(pool: PgPool, email_client: EmailClient) -> Result<(), anyh
 
 pub async fn run_worker_until_stopped(configuration: Settings) -> Result<(), anyhow::Error> {
     let connection_pool = get_connection_pull(&configuration.database);
-    let sender_email = configuration
-        .email_client
-        .sender()
-        .expect("Invalid sender email address.");
-    let timeout = configuration.email_client.timeout();
     let email_client = configuration.email_client.client();
     worker_loop(connection_pool, email_client).await
 }

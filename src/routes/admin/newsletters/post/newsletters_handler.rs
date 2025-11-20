@@ -1,10 +1,6 @@
-use super::{
-    errors::PublishError,
-    types::{BodySchema, ConfirmedSubscriber},
-};
+use super::{errors::PublishError, types::BodySchema};
 use crate::{
     authentication::UserId,
-    domain::SubscriberEmail,
     idempotency::{IdempotencyKey, NextAction, save_response, try_processing},
     routes::{e500, get_username, helpers::e400, see_other},
 };
@@ -64,29 +60,6 @@ pub async fn publish_newsletter(
         .await
         .map_err(e500)?;
     Ok(response)
-}
-
-#[tracing::instrument(name = "Get confirmed subscribers", skip(pool))]
-async fn get_confirmed_subscribers(
-    pool: &PgPool,
-) -> Result<Vec<Result<ConfirmedSubscriber, anyhow::Error>>, anyhow::Error> {
-    let rows = sqlx::query!(
-        r#"
-        SELECT email FROM subscriptions WHERE status = 'confirmed';
-        "#
-    )
-    .fetch_all(pool)
-    .await?;
-
-    let confirmed_subscribers = rows
-        .into_iter()
-        .map(|r| match SubscriberEmail::parse(r.email) {
-            Ok(email) => Ok(ConfirmedSubscriber { email }),
-            Err(err) => Err(anyhow::anyhow!(err)),
-        })
-        .collect();
-
-    Ok(confirmed_subscribers)
 }
 
 fn success_message() -> FlashMessage {
